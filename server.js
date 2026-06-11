@@ -1,7 +1,6 @@
 import express from 'express';
 import multer from 'multer';
 import Anthropic from '@anthropic-ai/sdk';
-import OpenAI, { toFile } from 'openai';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import 'dotenv/config';
@@ -13,10 +12,39 @@ const upload = multer({
   limits: { fileSize: 25 * 1024 * 1024 },
 });
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const OPENAI_API_KEY = (process.env.OPENAI_API_KEY || '').trim();
+const ANTHROPIC_API_KEY = (process.env.ANTHROPIC_API_KEY || '').trim();
+
+const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
 app.use(express.static(join(__dirname, 'public')));
+
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true, version: 2 });
+});
+
+async function transcribe(buffer, mimeType) {
+  const ext = getExt(mimeType);
+  const formData = new FormData();
+  formData.append('file', new Blob([buffer], { type: mimeType }), `audio.${ext}`);
+  formData.append('model', 'whisper-1');
+  formData.append('language', 'ja');
+
+  const r = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${OPENAI_API_KEY}` },
+    body: formData,
+  });
+
+  if (!r.ok) {
+    const body = await r.text().catch(() => '');
+    if (r.status === 401) throw new Error('OpenAIのAPIキーが正しくありません');
+    throw new Error(`文字起こしに失敗しました (${r.status}): ${body.slice(0, 200)}`);
+  }
+
+  const data = await r.json();
+  return (data.text || '').trim();
+}
 
 app.post('/api/process', upload.single('audio'), async (req, res) => {
   if (!req.file) {
@@ -26,20 +54,7 @@ app.post('/api/process', upload.single('audio'), async (req, res) => {
   try {
     // Step 1: Whisper で文字起こし
     const mimeType = req.file.mimetype || 'audio/webm';
-    const ext = getExt(mimeType);
-    const audioFile = await toFile(
-      new Blob([req.file.buffer], { type: mimeType }),
-      `audio.${ext}`,
-      { type: mimeType }
-    );
-
-    const transcriptionRes = await openai.audio.transcriptions.create({
-      file: audioFile,
-      model: 'whisper-1',
-      language: 'ja',
-    });
-
-    const transcription = transcriptionRes.text.trim();
+    const transcription = await transcribe(req.file.buffer, mimeType);
 
     if (!transcription) {
       return res.json({ success: true, transcription: '', organized: null });
@@ -99,7 +114,9 @@ ${transcription}
     res.json({ success: true, transcription, organized });
   } catch (err) {
     console.error('[ERROR]', err);
-    res.status(500).json({ error: err.message });
+    let msg = err.message;
+    if (err.status === 401) msg = 'ClaudeのAPIキーが正しくありません';
+    res.status(500).json({ error: msg });
   }
 });
 
