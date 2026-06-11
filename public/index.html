@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>声でメモ</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>声でメモ</h1>
+      <p class="subtitle">話すだけで、AIが整理します</p>
+    </header>
+
+    <main>
+      <div class="record-area">
+        <button id="recordBtn" class="record-btn">
+          <span class="mic-icon" id="micIcon">🎙️</span>
+          <span id="btnText">録音開始</span>
+        </button>
+        <div id="timer" class="timer"></div>
+        <div id="status" class="status"></div>
+      </div>
+
+      <div id="results" class="results hidden">
+        <div class="transcription-card">
+          <h3>文字起こし</h3>
+          <p id="transcriptionText"></p>
+        </div>
+        <div id="memoHeader" class="memo-header hidden">
+          <h2 id="memoTitle"></h2>
+          <p id="memoSummary" class="summary"></p>
+        </div>
+        <div id="categories" class="categories"></div>
+      </div>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
