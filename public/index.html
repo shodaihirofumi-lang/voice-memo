@@ -2,8 +2,18 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>声でメモ</title>
+  <meta name="theme-color" content="#0b0b16">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="声でメモ">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,32 +24,67 @@
     </header>
 
     <main>
-      <div class="record-area">
-        <button id="recordBtn" class="record-btn">
-          <span class="mic-icon" id="micIcon">🎙️</span>
-          <span id="btnText">録音開始</span>
-        </button>
-        <div id="timer" class="timer"></div>
-        <div id="status" class="status"></div>
-      </div>
-
-      <div id="live" class="transcription-card hidden">
-        <h3>認識中...</h3>
-        <p><span id="liveFinal"></span><span id="liveInterim" class="interim"></span></p>
-      </div>
-
-      <div id="results" class="results hidden">
-        <div class="transcription-card">
-          <h3>文字起こし</h3>
-          <p id="transcriptionText"></p>
+      <!-- 録音画面 -->
+      <section id="view-record" class="view active">
+        <div class="record-area">
+          <button id="recordBtn" class="record-btn">
+            <span class="mic-icon" id="micIcon">🎙️</span>
+            <span id="btnText">録音開始</span>
+          </button>
+          <canvas id="visualizer" width="640" height="120"></canvas>
+          <div id="timer" class="timer"></div>
+          <div id="status" class="status"></div>
         </div>
-        <div id="memoHeader" class="memo-header hidden">
-          <h2 id="memoTitle"></h2>
-          <p id="memoSummary" class="summary"></p>
+
+        <div id="live" class="glass-card live-card hidden">
+          <h3 class="card-label">認識中...</h3>
+          <p class="live-text"><span id="liveFinal"></span><span id="liveInterim" class="interim"></span></p>
         </div>
-        <div id="categories" class="categories"></div>
-      </div>
+
+        <div id="result"></div>
+      </section>
+
+      <!-- 履歴画面 -->
+      <section id="view-history" class="view">
+        <h2 class="view-title">📚 履歴</h2>
+        <div id="historyList"></div>
+        <p id="historyEmpty" class="empty-message">まだメモがありません。<br>録音タブから話してみてください。</p>
+      </section>
+
+      <!-- 設定画面 -->
+      <section id="view-settings" class="view">
+        <h2 class="view-title">⚙️ 設定</h2>
+
+        <div class="glass-card settings-card">
+          <h3 class="card-label">Todoist連携</h3>
+          <p class="settings-help">APIトークンを保存すると、タスクをワンタップでTodoistに追加できます。トークンは Todoistアプリ → 設定 → 連携 → 開発者 → APIトークン で確認できます。</p>
+          <input type="password" id="todoistToken" class="text-input" placeholder="Todoist APIトークンを貼り付け">
+          <div class="settings-actions">
+            <button id="saveTokenBtn" class="pill-btn primary">保存</button>
+            <button id="clearTokenBtn" class="pill-btn">削除</button>
+          </div>
+          <p id="tokenStatus" class="token-status"></p>
+        </div>
+
+        <div class="glass-card settings-card">
+          <h3 class="card-label">使い方のヒント</h3>
+          <ul class="tips">
+            <li>🎧 <b>イヤホンマイク推奨</b> — 周りの声を拾いにくくなり、自分の声だけきれいに認識されます</li>
+            <li>📱 <b>アプリとして使う</b> — iPhone: 共有ボタン→「ホーム画面に追加」/ Android: メニュー→「アプリをインストール」</li>
+            <li>💰 <b>料金</b> — 1メモあたり約0.2〜0.5円（AI整理代のみ）</li>
+            <li>⏰ <b>期限を話すと</b> —「明日」「金曜までに」などと言うと日付付きタスクになります</li>
+          </ul>
+        </div>
+      </section>
     </main>
+
+    <nav class="bottom-nav">
+      <button class="nav-btn active" data-view="record"><span class="nav-icon">🎙️</span><span>録音</span></button>
+      <button class="nav-btn" data-view="history"><span class="nav-icon">📚</span><span>履歴</span></button>
+      <button class="nav-btn" data-view="settings"><span class="nav-icon">⚙️</span><span>設定</span></button>
+    </nav>
+
+    <div id="toast" class="toast hidden"></div>
   </div>
   <script src="app.js"></script>
 </body>
