@@ -17,7 +17,7 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.static(join(__dirname, 'public')));
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, version: 7, ai: GEMINI_API_KEY ? 'gemini' : 'claude' });
+  res.json({ ok: true, version: 8, ai: GEMINI_API_KEY ? 'gemini' : 'claude' });
 });
 
 const WEEKDAYS_JA = ['日', '月', '火', '水', '木', '金', '土'];
@@ -72,8 +72,19 @@ async function callGemini(prompt, maxTokens) {
   return parts.map((p) => p.text || '').join('').trim();
 }
 
-function callAI(prompt, maxTokens) {
-  return GEMINI_API_KEY ? callGemini(prompt, maxTokens) : callClaude(prompt, maxTokens);
+// Gemini優先、失敗時はClaudeに自動フォールバック
+async function callAI(prompt, maxTokens) {
+  if (GEMINI_API_KEY) {
+    try {
+      const text = await callGemini(prompt, maxTokens);
+      return { text, ai: 'gemini' };
+    } catch (err) {
+      if (!ANTHROPIC_API_KEY) throw err;
+      console.warn('[Gemini失敗→Claudeに切替]', err.message);
+    }
+  }
+  const text = await callClaude(prompt, maxTokens);
+  return { text, ai: 'claude' };
 }
 
 function aiErrorMessage(err) {
@@ -144,7 +155,7 @@ app.post('/api/organize', async (req, res) => {
   const today = todayJST();
 
   try {
-    const rawText = await callAI(
+    const { text: rawText, ai } = await callAI(
       `以下の音声メモを分析して、内容を整理してください。
 
 今日は ${today.iso}（${today.weekday}曜日）です。
@@ -174,7 +185,7 @@ ${JSON_FORMAT_SPEC}`,
       };
     }
 
-    res.json({ success: true, transcription: text, organized });
+    res.json({ success: true, transcription: text, organized, ai });
   } catch (err) {
     console.error('[ERROR]', err);
     res.status(500).json({ error: aiErrorMessage(err) });
@@ -193,7 +204,7 @@ app.post('/api/append', async (req, res) => {
   const today = todayJST();
 
   try {
-    const rawText = await callAI(
+    const { text: rawText, ai } = await callAI(
       `既存の音声メモの整理結果に、追加で話された内容を統合してください。
 
 今日は ${today.iso}（${today.weekday}曜日）です。
@@ -230,7 +241,7 @@ ${JSON_FORMAT_SPEC}`,
       });
     }
 
-    res.json({ success: true, organized });
+    res.json({ success: true, organized, ai });
   } catch (err) {
     console.error('[ERROR]', err);
     res.status(500).json({ error: aiErrorMessage(err) });
@@ -307,7 +318,7 @@ app.post('/api/weekly', async (req, res) => {
   const today = todayJST();
 
   try {
-    const summary = await callAI(
+    const { text: summary, ai } = await callAI(
       `あなたは私の個人秘書です。以下はこの1週間の音声メモの記録です（[済]=完了、[未]=未完了）。今日は ${today.iso}（${today.weekday}曜日）です。
 
 """
@@ -327,7 +338,7 @@ ${digest}
       800
     );
 
-    res.json({ success: true, summary });
+    res.json({ success: true, summary, ai });
   } catch (err) {
     console.error('[ERROR]', err);
     res.status(500).json({ error: aiErrorMessage(err) });
