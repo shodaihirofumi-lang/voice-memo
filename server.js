@@ -1,5 +1,4 @@
 import express from 'express';
-import multer from 'multer';
 import Anthropic from '@anthropic-ai/sdk';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -7,60 +6,24 @@ import 'dotenv/config';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 25 * 1024 * 1024 },
-});
 
-const OPENAI_API_KEY = (process.env.OPENAI_API_KEY || '').trim();
 const ANTHROPIC_API_KEY = (process.env.ANTHROPIC_API_KEY || '').trim();
-
 const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
+app.use(express.json({ limit: '1mb' }));
 app.use(express.static(join(__dirname, 'public')));
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, version: 2 });
+  res.json({ ok: true, version: 3 });
 });
 
-async function transcribe(buffer, mimeType) {
-  const ext = getExt(mimeType);
-  const formData = new FormData();
-  formData.append('file', new Blob([buffer], { type: mimeType }), `audio.${ext}`);
-  formData.append('model', 'whisper-1');
-  formData.append('language', 'ja');
-
-  const r = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${OPENAI_API_KEY}` },
-    body: formData,
-  });
-
-  if (!r.ok) {
-    const body = await r.text().catch(() => '');
-    if (r.status === 401) throw new Error('OpenAIのAPIキーが正しくありません');
-    throw new Error(`文字起こしに失敗しました (${r.status}): ${body.slice(0, 200)}`);
-  }
-
-  const data = await r.json();
-  return (data.text || '').trim();
-}
-
-app.post('/api/process', upload.single('audio'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: '音声ファイルが必要です' });
+app.post('/api/organize', async (req, res) => {
+  const text = ((req.body && req.body.text) || '').trim();
+  if (!text) {
+    return res.status(400).json({ error: 'テキストが必要です' });
   }
 
   try {
-    // Step 1: Whisper で文字起こし
-    const mimeType = req.file.mimetype || 'audio/webm';
-    const transcription = await transcribe(req.file.buffer, mimeType);
-
-    if (!transcription) {
-      return res.json({ success: true, transcription: '', organized: null });
-    }
-
-    // Step 2: Claude で内容を整理
     const message = await anthropic.messages.create({
       model: 'claude-opus-4-8',
       max_tokens: 1024,
@@ -72,7 +35,7 @@ app.post('/api/process', upload.single('audio'), async (req, res) => {
 
 文字起こし:
 """
-${transcription}
+${text}
 """
 
 以下のJSON形式のみで返してください（Markdownコードブロック不要）:
@@ -106,32 +69,23 @@ ${transcription}
     } catch {
       organized = {
         title: '音声メモ',
-        summary: transcription.slice(0, 80),
-        categories: { notes: [transcription] },
+        summary: text.slice(0, 80),
+        categories: { notes: [text] },
       };
     }
 
-    res.json({ success: true, transcription, organized });
+    res.json({ success: true, transcription: text, organized });
   } catch (err) {
     console.error('[ERROR]', err);
-    let msg = err.message;
-    if (err.status === 401) msg = 'ClaudeのAPIキーが正しくありません';
+    let msg = err.message || 'エラーが発生しました';
+    if (err.status === 401) {
+      msg = 'ClaudeのAPIキーが正しくありません';
+    } else if (msg.includes('credit balance')) {
+      msg = 'Claude(Anthropic)の残高が不足しています。console.anthropic.com でチャージしてください';
+    }
     res.status(500).json({ error: msg });
   }
 });
-
-function getExt(mimetype) {
-  const base = mimetype.split(';')[0].trim();
-  const map = {
-    'audio/webm': 'webm',
-    'video/webm': 'webm',
-    'audio/ogg': 'ogg',
-    'audio/mp4': 'm4a',
-    'audio/mpeg': 'mp3',
-    'audio/wav': 'wav',
-  };
-  return map[base] || 'webm';
-}
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

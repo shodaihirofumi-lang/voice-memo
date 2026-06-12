@@ -3,6 +3,9 @@ const micIcon = document.getElementById('micIcon');
 const btnText = document.getElementById('btnText');
 const timerEl = document.getElementById('timer');
 const statusEl = document.getElementById('status');
+const liveEl = document.getElementById('live');
+const liveFinalEl = document.getElementById('liveFinal');
+const liveInterimEl = document.getElementById('liveInterim');
 const resultsEl = document.getElementById('results');
 const transcriptionTextEl = document.getElementById('transcriptionText');
 const memoHeaderEl = document.getElementById('memoHeader');
@@ -10,9 +13,12 @@ const memoTitleEl = document.getElementById('memoTitle');
 const memoSummaryEl = document.getElementById('memoSummary');
 const categoriesEl = document.getElementById('categories');
 
-let mediaRecorder = null;
-let audioChunks = [];
+const SpeechRecognitionImpl =
+  window.SpeechRecognition || window.webkitSpeechRecognition;
+
+let recognition = null;
 let isRecording = false;
+let finalText = '';
 let timerInterval = null;
 let seconds = 0;
 
@@ -24,92 +30,124 @@ const CATEGORY_CONFIG = {
   notes:     { label: 'メモ',         icon: '📝' },
 };
 
-recordBtn.addEventListener('click', toggleRecording);
-
-async function toggleRecording() {
+recordBtn.addEventListener('click', () => {
   if (isRecording) {
     stopRecording();
   } else {
-    await startRecording();
+    startRecording();
   }
-}
+});
 
-async function startRecording() {
+function startRecording() {
+  if (!SpeechRecognitionImpl) {
+    setStatus('このブラウザは音声認識に対応していません。ChromeかSafariで開いてください', 'error');
+    return;
+  }
+
+  finalText = '';
+  recognition = new SpeechRecognitionImpl();
+  recognition.lang = 'ja-JP';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+
+  recognition.onresult = (e) => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) {
+        finalText += t;
+      } else {
+        interim += t;
+      }
+    }
+    liveFinalEl.textContent = finalText;
+    liveInterimEl.textContent = interim;
+  };
+
+  recognition.onerror = (e) => {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      isRecording = false;
+      stopTimer();
+      resetButton();
+      setStatus('マイクへのアクセスを許可してください', 'error');
+    }
+    // 'no-speech' などは無視（onend の自動再開に任せる）
+  };
+
+  // スマホは無音で勝手に止まるので、録音中なら自動で再開する
+  recognition.onend = () => {
+    if (isRecording) {
+      try { recognition.start(); } catch {}
+    }
+  };
+
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-    const mimeTypes = [
-      'audio/webm;codecs=opus',
-      'audio/webm',
-      'audio/ogg;codecs=opus',
-      'audio/mp4',
-    ];
-    const mimeType = mimeTypes.find((t) => MediaRecorder.isTypeSupported(t)) || '';
-
-    mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
-    audioChunks = [];
-
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) audioChunks.push(e.data);
-    };
-
-    mediaRecorder.onstop = () => {
-      stream.getTracks().forEach((t) => t.stop());
-      processAudio();
-    };
-
-    mediaRecorder.start(100);
-    isRecording = true;
-
-    recordBtn.classList.add('recording');
-    micIcon.textContent = '⏹️';
-    btnText.textContent = '録音停止';
-    setStatus('録音中...', 'recording');
-    resultsEl.classList.add('hidden');
-    startTimer();
-  } catch (err) {
-    setStatus('マイクへのアクセスを許可してください', 'error');
+    recognition.start();
+  } catch {
+    setStatus('音声認識を開始できませんでした。ページを再読み込みしてください', 'error');
+    return;
   }
+
+  isRecording = true;
+  recordBtn.classList.add('recording');
+  micIcon.textContent = '⏹️';
+  btnText.textContent = '録音停止';
+  setStatus('録音中... 話してください', 'recording');
+  liveFinalEl.textContent = '';
+  liveInterimEl.textContent = '';
+  liveEl.classList.remove('hidden');
+  resultsEl.classList.add('hidden');
+  startTimer();
 }
 
 function stopRecording() {
-  if (!mediaRecorder || !isRecording) return;
-  mediaRecorder.stop();
   isRecording = false;
+  if (recognition) {
+    try { recognition.stop(); } catch {}
+  }
   stopTimer();
   recordBtn.classList.remove('recording');
+
+  const text = finalText.trim();
+  if (!text) {
+    resetButton();
+    liveEl.classList.add('hidden');
+    setStatus('音声が認識できませんでした。もう一度お試しください', 'error');
+    return;
+  }
+
   recordBtn.disabled = true;
   micIcon.textContent = '⏳';
   btnText.textContent = '処理中...';
-  setStatus('AIが分析中です...', 'processing');
+  setStatus('AIが整理中です...', 'processing');
+  organize(text);
 }
 
-async function processAudio() {
+async function organize(text) {
   try {
-    const mimeType = (audioChunks[0] && audioChunks[0].type) || 'audio/webm';
-    const audioBlob = new Blob(audioChunks, { type: mimeType });
-
-    const formData = new FormData();
-    formData.append('audio', audioBlob, 'audio.webm');
-
-    const response = await fetch('/api/process', { method: 'POST', body: formData });
+    const response = await fetch('/api/organize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
     const data = await response.json();
 
     if (!response.ok) throw new Error(data.error || 'サーバーエラー');
-    if (!data.transcription) {
-      setStatus('音声が検出されませんでした。もう一度お試しください。', 'error');
-      return;
-    }
 
+    liveEl.classList.add('hidden');
     renderResults(data);
     setStatus('完了！', 'success');
   } catch (err) {
     setStatus(`エラー: ${err.message}`, 'error');
   } finally {
-    recordBtn.disabled = false;
-    micIcon.textContent = '🎙️';
-    btnText.textContent = '録音開始';
+    resetButton();
   }
+}
+
+function resetButton() {
+  recordBtn.disabled = false;
+  micIcon.textContent = '🎙️';
+  btnText.textContent = '録音開始';
 }
 
 function renderResults(data) {
@@ -145,7 +183,7 @@ function renderResults(data) {
 }
 
 function escapeHtml(str) {
-  return str
+  return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')

@@ -120,6 +120,11 @@ h1 {
 
 /* Results */
 .results.hidden { display: none; }
+.transcription-card.hidden { display: none; }
+
+.interim {
+  color: #64748b;
+}
 
 .transcription-card {
   background: #161625;
