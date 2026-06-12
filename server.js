@@ -17,7 +17,7 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.static(join(__dirname, 'public')));
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, version: 8, ai: GEMINI_API_KEY ? 'gemini' : 'claude' });
+  res.json({ ok: true, version: 9, ai: GEMINI_API_KEY ? 'gemini' : 'claude' });
 });
 
 const WEEKDAYS_JA = ['日', '月', '火', '水', '木', '金', '土'];
@@ -268,7 +268,7 @@ app.post('/api/todoist', async (req, res) => {
     if (t.due && /^\d{4}-\d{2}-\d{2}$/.test(t.due)) body.due_date = t.due;
 
     try {
-      const r = await fetch('https://api.todoist.com/rest/v2/tasks', {
+      const r = await fetch('https://api.todoist.com/api/v1/tasks', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -279,8 +279,12 @@ app.post('/api/todoist', async (req, res) => {
       if (r.status === 401 || r.status === 403) {
         return res.status(401).json({ error: 'Todoistトークンが正しくありません。設定で確認してください' });
       }
+      if (!r.ok) {
+        console.warn('[Todoist]', r.status, await r.text().catch(() => ''));
+      }
       results.push({ text: content, ok: r.ok });
-    } catch {
+    } catch (e) {
+      console.warn('[Todoist]', e.message);
       results.push({ text: content, ok: false });
     }
   }
