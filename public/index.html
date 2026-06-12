@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>声でメモ</title>
-  <meta name="theme-color" content="#0b0b16">
+  <meta name="theme-color" content="#09090b">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="声でメモ">
@@ -13,31 +13,29 @@
   <link rel="icon" type="image/png" href="icons/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="app">
     <header>
-      <h1>声でメモ</h1>
-      <p class="subtitle">話すだけで、AIが整理します</p>
+      <div class="wordmark">声でメモ</div>
     </header>
 
     <main>
       <!-- 録音画面 -->
       <section id="view-record" class="view active">
         <div class="record-area">
-          <button id="recordBtn" class="record-btn">
-            <span class="mic-icon" id="micIcon">🎙️</span>
-            <span id="btnText">録音開始</span>
+          <button id="recordBtn" class="record-btn" aria-label="録音">
+            <span class="mic-icon" id="micIcon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></span>
           </button>
-          <canvas id="visualizer" width="640" height="120"></canvas>
+          <canvas id="visualizer" width="680" height="88"></canvas>
           <div id="timer" class="timer"></div>
           <div id="status" class="status"></div>
         </div>
 
         <div id="live" class="glass-card live-card hidden">
-          <h3 class="card-label">認識中...</h3>
+          <h3 class="card-label">認識中</h3>
           <p class="live-text"><span id="liveFinal"></span><span id="liveInterim" class="interim"></span></p>
         </div>
 
@@ -46,14 +44,14 @@
 
       <!-- 履歴画面 -->
       <section id="view-history" class="view">
-        <h2 class="view-title">📚 履歴</h2>
+        <h2 class="view-title">履歴</h2>
         <div id="historyList"></div>
         <p id="historyEmpty" class="empty-message">まだメモがありません。<br>録音タブから話してみてください。</p>
       </section>
 
       <!-- 設定画面 -->
       <section id="view-settings" class="view">
-        <h2 class="view-title">⚙️ 設定</h2>
+        <h2 class="view-title">設定</h2>
 
         <div class="glass-card settings-card">
           <h3 class="card-label">Todoist連携</h3>
@@ -67,21 +65,30 @@
         </div>
 
         <div class="glass-card settings-card">
-          <h3 class="card-label">使い方のヒント</h3>
+          <h3 class="card-label">ヒント</h3>
           <ul class="tips">
-            <li>🎧 <b>イヤホンマイク推奨</b> — 周りの声を拾いにくくなり、自分の声だけきれいに認識されます</li>
-            <li>📱 <b>アプリとして使う</b> — iPhone: 共有ボタン→「ホーム画面に追加」/ Android: メニュー→「アプリをインストール」</li>
-            <li>💰 <b>料金</b> — 1メモあたり約0.2〜0.5円（AI整理代のみ）</li>
-            <li>⏰ <b>期限を話すと</b> —「明日」「金曜までに」などと言うと日付付きタスクになります</li>
+            <li><b>イヤホンマイク推奨</b>周囲の声を拾いにくくなり、自分の声がきれいに認識されます</li>
+            <li><b>ホーム画面に追加</b>iPhoneは共有ボタン→「ホーム画面に追加」、Androidはメニュー→「アプリをインストール」</li>
+            <li><b>期限を話すと日付になります</b>「明日」「金曜までに」などが期限付きタスクになります</li>
+            <li><b>料金の目安</b>1メモあたり約0.2〜0.5円（AI整理代のみ）</li>
           </ul>
         </div>
       </section>
     </main>
 
     <nav class="bottom-nav">
-      <button class="nav-btn active" data-view="record"><span class="nav-icon">🎙️</span><span>録音</span></button>
-      <button class="nav-btn" data-view="history"><span class="nav-icon">📚</span><span>履歴</span></button>
-      <button class="nav-btn" data-view="settings"><span class="nav-icon">⚙️</span><span>設定</span></button>
+      <button class="nav-btn active" data-view="record" aria-label="録音">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+        <span>録音</span>
+      </button>
+      <button class="nav-btn" data-view="history" aria-label="履歴">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+        <span>履歴</span>
+      </button>
+      <button class="nav-btn" data-view="settings" aria-label="設定">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg>
+        <span>設定</span>
+      </button>
     </nav>
 
     <div id="toast" class="toast hidden"></div>

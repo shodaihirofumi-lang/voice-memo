@@ -1,7 +1,6 @@
 // ===== 要素 =====
 const recordBtn = document.getElementById('recordBtn');
 const micIcon = document.getElementById('micIcon');
-const btnText = document.getElementById('btnText');
 const timerEl = document.getElementById('timer');
 const statusEl = document.getElementById('status');
 const vizCanvas = document.getElementById('visualizer');
@@ -18,12 +17,16 @@ const toastEl = document.getElementById('toast');
 const SpeechRecognitionImpl =
   window.SpeechRecognition || window.webkitSpeechRecognition;
 
+const MIC_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>';
+const STOP_SVG = '<svg viewBox="0 0 24 24" fill="#ef4444"><rect x="7" y="7" width="10" height="10" rx="2.5"/></svg>';
+const CHEVRON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+
 const CATEGORY_CONFIG = {
-  tasks:     { label: '✅ タスク',       color: 'var(--c-tasks)' },
-  shopping:  { label: '🛒 買い物',       color: 'var(--c-shopping)' },
-  ideas:     { label: '💡 アイデア',     color: 'var(--c-ideas)' },
-  reminders: { label: '⏰ リマインダー', color: 'var(--c-reminders)' },
-  notes:     { label: '📝 メモ',         color: 'var(--c-notes)' },
+  tasks:     { label: 'タスク',       color: '#4ade80' },
+  shopping:  { label: '買い物',       color: '#fbbf24' },
+  ideas:     { label: 'アイデア',     color: '#c084fc' },
+  reminders: { label: 'リマインダー', color: '#60a5fa' },
+  notes:     { label: 'メモ',         color: '#71717a' },
 };
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
@@ -130,8 +133,7 @@ function startRecording() {
 
   isRecording = true;
   recordBtn.classList.add('recording');
-  micIcon.textContent = '⏹️';
-  btnText.textContent = '録音停止';
+  micIcon.innerHTML = STOP_SVG;
   setStatus('録音中... 話してください', 'recording');
   liveFinalEl.textContent = '';
   liveInterimEl.textContent = '';
@@ -159,8 +161,8 @@ function stopRecording() {
   }
 
   recordBtn.disabled = true;
-  micIcon.textContent = '⏳';
-  btnText.textContent = '処理中...';
+  recordBtn.classList.add('processing');
+  micIcon.innerHTML = MIC_SVG;
   setStatus('AIが整理中です...', 'processing');
   organize(text);
 }
@@ -197,8 +199,8 @@ async function organize(text) {
 
 function resetButton() {
   recordBtn.disabled = false;
-  micIcon.textContent = '🎙️';
-  btnText.textContent = '録音開始';
+  recordBtn.classList.remove('processing');
+  micIcon.innerHTML = MIC_SVG;
 }
 
 // ===== 波形ビジュアライザー =====
@@ -219,18 +221,15 @@ async function startVisualizer() {
     const freq = new Uint8Array(analyser.frequencyBinCount);
     vizCanvas.classList.add('on');
 
-    const BARS = 28;
+    const BARS = 44;
     const W = vizCanvas.width, H = vizCanvas.height;
     const gap = 6;
     const barW = (W - gap * (BARS - 1)) / BARS;
-    const grad = ctx.createLinearGradient(0, H, 0, 0);
-    grad.addColorStop(0, '#8b5cf6');
-    grad.addColorStop(1, '#f0abfc');
 
     const draw = () => {
       analyser.getByteFrequencyData(freq);
       ctx.clearRect(0, 0, W, H);
-      ctx.fillStyle = grad;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
       for (let i = 0; i < BARS; i++) {
         const v = freq[Math.floor((i * freq.length) / BARS)] / 255;
         const h = Math.max(4, v * H * 0.95);
@@ -284,17 +283,15 @@ function memoBodyHTML(memo, opts) {
     const items = cats[key];
     if (!items || items.length === 0) continue;
 
-    html += `<div class="category-section" style="--cat-color:${config.color}">`;
-    html += `<h4>${config.label}</h4><ul>`;
+    html += `<div class="category-section">`;
+    html += `<h4><span class="dot" style="background:${config.color}"></span>${config.label}</h4><ul>`;
     items.forEach((item, idx) => {
-      const due = item.due
-        ? `<span class="due-chip">⏰ ${formatDue(item.due)}</span>`
-        : '';
+      const due = item.due ? `<span class="due">${formatDue(item.due)}</span>` : '';
       html += `
         <li class="item-row${item.done ? ' done' : ''}">
           <input type="checkbox" ${item.done ? 'checked' : ''}
             data-id="${memo.id}" data-cat="${key}" data-idx="${idx}">
-          <span class="item-text">${esc(item.text)}${due}</span>
+          <span class="item-text">${esc(item.text)}</span>${due}
         </li>`;
     });
     html += `</ul></div>`;
@@ -336,7 +333,7 @@ function renderHistory() {
             <div class="memo-title">${esc((m.organized && m.organized.title) || '音声メモ')}</div>
             <div class="memo-date">${formatDate(m.ts)}</div>
           </div>
-          <span class="chevron">▼</span>
+          <span class="chevron">${CHEVRON_SVG}</span>
         </div>
         <div class="history-body">${memoBodyHTML(m, { deletable: true, hideHeader: true })}</div>
       </div>`
@@ -386,7 +383,7 @@ document.addEventListener('click', (e) => {
 async function shareMemo(memo) {
   const o = memo.organized || {};
   const cats = o.categories || {};
-  let text = `📝 ${o.title || '音声メモ'}\n`;
+  let text = `${o.title || '音声メモ'}\n`;
   if (o.summary) text += `${o.summary}\n`;
   for (const [key, config] of Object.entries(CATEGORY_CONFIG)) {
     const items = cats[key];
@@ -473,6 +470,7 @@ document.getElementById('clearTokenBtn').addEventListener('click', () => {
 });
 
 refreshTokenStatus();
+setStatus('タップして録音');
 
 // ===== 共通 =====
 function esc(str) {

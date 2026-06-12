@@ -68,11 +68,10 @@ function makeIcon(S) {
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {
       const u = (x + 0.5) / S, v = (y + 0.5) / S;
-      // 背景: 紫→藍の斜めグラデーション
-      const t = (u + v) / 2;
-      let r = 124 + (79 - 124) * t;
-      let g = 58 + (70 - 58) * t;
-      let b = 237 + (229 - 237) * t;
+      // 背景: 上が少し明るいチャコールのグラデーション
+      let r = 24 + (10 - 24) * v;
+      let g = 24 + (10 - 24) * v;
+      let b = 27 + (12 - 27) * v;
 
       // マイク（白）
       const dCap = sdCapsule(u, v, 0.5, 0.33, 0.5, 0.46, 0.085);
