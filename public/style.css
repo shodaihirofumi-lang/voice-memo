@@ -597,6 +597,88 @@ header {
 }
 .add-item-btn:hover { color: var(--text); }
 
+/* ===== テキスト入力モード ===== */
+.text-mode-btn {
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.2rem 0.6rem;
+  -webkit-tap-highlight-color: transparent;
+}
+.text-mode-btn:hover { color: var(--text); }
+
+.text-area {
+  resize: vertical;
+  min-height: 5.5em;
+  line-height: 1.6;
+}
+
+/* ===== ピン留め ===== */
+.head-right {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  flex-shrink: 0;
+}
+
+.pin-btn {
+  background: none;
+  border: none;
+  color: var(--text-3);
+  cursor: pointer;
+  padding: 0.35rem;
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+.pin-btn svg { width: 15px; height: 15px; }
+.pin-btn.pinned { color: var(--text); }
+.pin-btn.pinned svg { fill: currentColor; }
+
+/* ===== ゴミ箱 ===== */
+.trash-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.trash-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.trash-date {
+  font-size: 0.72rem;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.trash-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.trash-foot { margin-top: 0.7rem; }
+
+.trash-empty {
+  font-size: 0.84rem;
+  color: var(--text-3);
+}
+
+.pill-btn.sm {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.76rem;
+}
+
 /* ===== スマホ ===== */
 @media (max-width: 480px) {
   html { font-size: 17px; }

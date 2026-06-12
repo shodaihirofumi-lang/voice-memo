@@ -32,6 +32,16 @@
           <canvas id="visualizer" width="680" height="88"></canvas>
           <div id="timer" class="timer"></div>
           <div id="status" class="status"></div>
+          <button id="textModeBtn" class="text-mode-btn">キーボードで入力</button>
+        </div>
+
+        <div id="textCard" class="glass-card hidden">
+          <h3 class="card-label">テキストから整理</h3>
+          <textarea id="textInput" class="text-input text-area" rows="4" placeholder="メモを入力..."></textarea>
+          <div class="settings-actions">
+            <button id="textOrganizeBtn" class="pill-btn primary">整理する</button>
+            <button id="textCloseBtn" class="pill-btn">閉じる</button>
+          </div>
         </div>
 
         <div id="live" class="glass-card live-card hidden">
@@ -67,6 +77,12 @@
             <button id="clearTokenBtn" class="pill-btn">削除</button>
           </div>
           <p id="tokenStatus" class="token-status"></p>
+        </div>
+
+        <div class="glass-card settings-card">
+          <h3 class="card-label">ゴミ箱</h3>
+          <p class="settings-help">削除したメモは20件まで保管され、ここから復元できます。</p>
+          <div id="trashList"></div>
         </div>
 
         <div class="glass-card settings-card">
