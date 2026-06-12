@@ -510,6 +510,93 @@ header {
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
 }
 
+/* ===== 検索・週間まとめ ===== */
+.history-tools {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+}
+.history-tools .text-input {
+  margin-bottom: 0;
+  flex: 1;
+  min-width: 0;
+}
+#weeklyBtn { flex-shrink: 0; }
+
+.weekly-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.weekly-text {
+  white-space: pre-wrap;
+  font-size: 0.9rem;
+  color: var(--text-2);
+}
+
+/* ===== 編集モード ===== */
+.title-edit, .item-edit {
+  font-family: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+}
+
+.title-edit {
+  width: 100%;
+  font-size: 1.02rem;
+  font-weight: 600;
+  padding: 0.5rem 0.7rem;
+  margin-bottom: 0.7rem;
+}
+
+.item-edit {
+  flex: 1;
+  font-size: 0.92rem;
+  padding: 0.4rem 0.6rem;
+  min-width: 0;
+}
+
+.title-edit:focus, .item-edit:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.item-row.editing {
+  border-bottom: none;
+  padding: 0.28rem 0;
+}
+
+.del-item-btn {
+  background: none;
+  border: none;
+  color: var(--text-3);
+  cursor: pointer;
+  padding: 0.3rem;
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+.del-item-btn svg { width: 16px; height: 16px; }
+.del-item-btn:hover { color: var(--red-soft); }
+
+.add-item-btn {
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.35rem 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.add-item-btn:hover { color: var(--text); }
+
 /* ===== スマホ ===== */
 @media (max-width: 480px) {
   html { font-size: 17px; }

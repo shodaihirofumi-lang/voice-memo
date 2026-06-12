@@ -13,6 +13,9 @@ const historyEmptyEl = document.getElementById('historyEmpty');
 const tokenInput = document.getElementById('todoistToken');
 const tokenStatusEl = document.getElementById('tokenStatus');
 const toastEl = document.getElementById('toast');
+const searchInput = document.getElementById('searchInput');
+const weeklyBtn = document.getElementById('weeklyBtn');
+const weeklyResultEl = document.getElementById('weeklyResult');
 
 const SpeechRecognitionImpl =
   window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -20,6 +23,7 @@ const SpeechRecognitionImpl =
 const MIC_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>';
 const STOP_SVG = '<svg viewBox="0 0 24 24" fill="#ef4444"><rect x="7" y="7" width="10" height="10" rx="2.5"/></svg>';
 const CHEVRON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+const X_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
 
 const CATEGORY_CONFIG = {
   tasks:     { label: 'タスク',       color: '#4ade80' },
@@ -50,6 +54,9 @@ function saveMemos(memos) {
 }
 
 let memos = loadMemos();
+let editingId = null;
+let searchQuery = '';
+let currentResultId = null;
 
 function findMemo(id) {
   return memos.find((m) => m.id === id);
@@ -188,7 +195,8 @@ async function organize(text) {
     saveMemos(memos);
 
     liveEl.classList.add('hidden');
-    resultEl.innerHTML = `<div class="glass-card memo-card">${memoBodyHTML(memo, { deletable: false })}</div>`;
+    currentResultId = memo.id;
+    renderResult();
     setStatus('完了！保存しました', 'success');
   } catch (err) {
     setStatus(`エラー: ${err.message}`, 'error');
@@ -271,63 +279,127 @@ function stopVisualizer() {
 function memoBodyHTML(memo, opts) {
   const o = memo.organized || {};
   const cats = o.categories || {};
+  const editing = !!(opts && opts.editing);
   let html = '';
 
-  if (!(opts && opts.hideHeader)) {
+  if (editing) {
+    html += `<input class="title-edit" data-id="${memo.id}" value="${esc(o.title || '')}" placeholder="タイトル">`;
+  } else if (!(opts && opts.hideHeader)) {
     html += `<div class="memo-title">${esc(o.title || '音声メモ')}</div>`;
     html += `<div class="memo-date">${formatDate(memo.ts)}</div>`;
   }
-  if (o.summary) html += `<div class="memo-summary">${esc(o.summary)}</div>`;
+  if (!editing && o.summary) html += `<div class="memo-summary">${esc(o.summary)}</div>`;
 
   for (const [key, config] of Object.entries(CATEGORY_CONFIG)) {
-    const items = cats[key];
-    if (!items || items.length === 0) continue;
+    const items = cats[key] || [];
+    if (!editing && items.length === 0) continue;
 
     html += `<div class="category-section">`;
     html += `<h4><span class="dot" style="background:${config.color}"></span>${config.label}</h4><ul>`;
     items.forEach((item, idx) => {
-      const due = item.due ? `<span class="due">${formatDue(item.due)}</span>` : '';
-      html += `
+      if (editing) {
+        html += `
+        <li class="item-row editing">
+          <input type="text" class="item-edit" data-id="${memo.id}" data-cat="${key}" data-idx="${idx}" value="${esc(item.text)}">
+          <button class="del-item-btn" data-action="del-item" data-id="${memo.id}" data-cat="${key}" data-idx="${idx}" aria-label="項目を削除">${X_SVG}</button>
+        </li>`;
+      } else {
+        const due = item.due ? `<span class="due">${formatDue(item.due)}</span>` : '';
+        html += `
         <li class="item-row${item.done ? ' done' : ''}">
           <input type="checkbox" ${item.done ? 'checked' : ''}
             data-id="${memo.id}" data-cat="${key}" data-idx="${idx}">
           <span class="item-text">${esc(item.text)}</span>${due}
         </li>`;
+      }
     });
-    html += `</ul></div>`;
+    html += `</ul>`;
+    if (editing) {
+      html += `<button class="add-item-btn" data-action="add-item" data-id="${memo.id}" data-cat="${key}">＋ 追加</button>`;
+    }
+    html += `</div>`;
   }
 
-  html += `
+  if (!editing) {
+    html += `
     <details class="transcription-detail">
       <summary>文字起こし全文</summary>
       <p>${esc(memo.transcription || '')}</p>
     </details>`;
-
-  const hasTasks =
-    (cats.tasks || []).length > 0 || (cats.reminders || []).length > 0;
-  html += `<div class="memo-actions">`;
-  if (hasTasks) {
-    html += `<button class="pill-btn primary" data-action="todoist" data-id="${memo.id}">Todoistへ追加</button>`;
   }
-  html += `<button class="pill-btn" data-action="share" data-id="${memo.id}">共有</button>`;
-  if (opts && opts.deletable) {
-    html += `<button class="pill-btn danger" data-action="delete" data-id="${memo.id}">削除</button>`;
+
+  html += `<div class="memo-actions">`;
+  if (editing) {
+    html += `<button class="pill-btn primary" data-action="done-edit" data-id="${memo.id}">完了</button>`;
+  } else {
+    const hasTasks =
+      (cats.tasks || []).length > 0 || (cats.reminders || []).length > 0;
+    if (hasTasks) {
+      html += `<button class="pill-btn primary" data-action="todoist" data-id="${memo.id}">Todoistへ追加</button>`;
+    }
+    html += `<button class="pill-btn" data-action="edit" data-id="${memo.id}">編集</button>`;
+    html += `<button class="pill-btn" data-action="share" data-id="${memo.id}">共有</button>`;
+    if (opts && opts.deletable) {
+      html += `<button class="pill-btn danger" data-action="delete" data-id="${memo.id}">削除</button>`;
+    }
   }
   html += `</div>`;
   return html;
 }
 
+function renderResult() {
+  const m = currentResultId ? findMemo(currentResultId) : null;
+  resultEl.innerHTML = m
+    ? `<div class="glass-card memo-card">${memoBodyHTML(m, { editing: editingId === m.id })}</div>`
+    : '';
+}
+
+function rerenderAll() {
+  renderResult();
+  renderHistory();
+}
+
+function memoSearchText(m) {
+  const o = m.organized || {};
+  const parts = [o.title || '', o.summary || '', m.transcription || ''];
+  for (const items of Object.values(o.categories || {})) {
+    for (const it of items) parts.push(it.text || '');
+  }
+  return parts.join(' ').toLowerCase();
+}
+
+function cleanupMemo(memo) {
+  const cats = (memo.organized && memo.organized.categories) || {};
+  for (const key of Object.keys(cats)) {
+    cats[key] = cats[key]
+      .map((it) => ({ ...it, text: (it.text || '').trim() }))
+      .filter((it) => it.text !== '');
+    if (cats[key].length === 0) delete cats[key];
+  }
+  if (memo.organized && !(memo.organized.title || '').trim()) {
+    memo.organized.title = '音声メモ';
+  }
+}
+
+const HISTORY_EMPTY_DEFAULT = 'まだメモがありません。<br>録音タブから話してみてください。';
+
 function renderHistory() {
-  if (memos.length === 0) {
+  const q = searchQuery.trim().toLowerCase();
+  const list = q ? memos.filter((m) => memoSearchText(m).includes(q)) : memos;
+
+  if (list.length === 0) {
     historyListEl.innerHTML = '';
+    historyEmptyEl.innerHTML = q
+      ? `「${esc(searchQuery.trim())}」に一致するメモがありません`
+      : HISTORY_EMPTY_DEFAULT;
     historyEmptyEl.classList.remove('hidden');
     return;
   }
   historyEmptyEl.classList.add('hidden');
-  historyListEl.innerHTML = memos
+  historyListEl.innerHTML = list
     .map(
       (m) => `
-      <div class="glass-card memo-card history-card" data-card="${m.id}">
+      <div class="glass-card memo-card history-card${editingId === m.id ? ' open' : ''}" data-card="${m.id}">
         <div class="history-head" data-toggle="${m.id}">
           <div>
             <div class="memo-title">${esc((m.organized && m.organized.title) || '音声メモ')}</div>
@@ -335,7 +407,7 @@ function renderHistory() {
           </div>
           <span class="chevron">${CHEVRON_SVG}</span>
         </div>
-        <div class="history-body">${memoBodyHTML(m, { deletable: true, hideHeader: true })}</div>
+        <div class="history-body">${memoBodyHTML(m, { deletable: true, hideHeader: true, editing: editingId === m.id })}</div>
       </div>`
     )
     .join('');
@@ -364,18 +436,173 @@ document.addEventListener('click', (e) => {
 
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
+  const action = btn.dataset.action;
+
+  if (action === 'close-weekly') {
+    weeklyResultEl.innerHTML = '';
+    return;
+  }
+
   const memo = findMemo(btn.dataset.id);
   if (!memo) return;
 
-  if (btn.dataset.action === 'share') shareMemo(memo);
-  if (btn.dataset.action === 'todoist') addToTodoist(memo, btn);
-  if (btn.dataset.action === 'delete') {
+  if (action === 'share') shareMemo(memo);
+  if (action === 'todoist') addToTodoist(memo, btn);
+
+  if (action === 'edit') {
+    editingId = memo.id;
+    rerenderAll();
+  }
+
+  if (action === 'done-edit') {
+    cleanupMemo(memo);
+    editingId = null;
+    saveMemos(memos);
+    rerenderAll();
+    toast('保存しました');
+  }
+
+  if (action === 'del-item') {
+    const arr = ((memo.organized || {}).categories || {})[btn.dataset.cat];
+    if (arr) arr.splice(Number(btn.dataset.idx), 1);
+    rerenderAll();
+  }
+
+  if (action === 'add-item') {
+    const o = memo.organized || (memo.organized = {});
+    const cats = o.categories || (o.categories = {});
+    (cats[btn.dataset.cat] = cats[btn.dataset.cat] || []).push({ text: '', due: null, done: false });
+    rerenderAll();
+    const scope = document.querySelector('.view.active') || document;
+    const inputs = scope.querySelectorAll(`.item-edit[data-id="${memo.id}"][data-cat="${btn.dataset.cat}"]`);
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  }
+
+  if (action === 'delete') {
     if (confirm('このメモを削除しますか？')) {
       memos = memos.filter((m) => m.id !== memo.id);
+      if (currentResultId === memo.id) currentResultId = null;
+      if (editingId === memo.id) editingId = null;
       saveMemos(memos);
-      renderHistory();
+      rerenderAll();
       toast('削除しました');
     }
+  }
+});
+
+// 編集中のテキスト入力をモデルに反映（保存は「完了」時）
+document.addEventListener('input', (e) => {
+  const el = e.target;
+  if (el.matches('.item-edit')) {
+    const memo = findMemo(el.dataset.id);
+    if (!memo) return;
+    const item = (((memo.organized || {}).categories || {})[el.dataset.cat] || [])[el.dataset.idx];
+    if (item) item.text = el.value;
+  } else if (el.matches('.title-edit')) {
+    const memo = findMemo(el.dataset.id);
+    if (memo && memo.organized) memo.organized.title = el.value;
+  }
+});
+
+// ===== 検索 =====
+searchInput.addEventListener('input', () => {
+  searchQuery = searchInput.value;
+  renderHistory();
+});
+
+// ===== 週間まとめ =====
+weeklyBtn.addEventListener('click', async () => {
+  const recent = memos.filter((m) => Date.now() - m.ts < 7 * 86400000).slice(0, 50);
+  if (recent.length === 0) {
+    toast('この1週間のメモがありません');
+    return;
+  }
+
+  weeklyBtn.disabled = true;
+  const original = weeklyBtn.textContent;
+  weeklyBtn.textContent = '作成中...';
+
+  try {
+    const payload = recent.map((m) => ({
+      date: formatDate(m.ts),
+      title: (m.organized && m.organized.title) || '',
+      categories: Object.fromEntries(
+        Object.entries((m.organized && m.organized.categories) || {}).map(([k, items]) => [
+          k,
+          items.map((it) => ({ text: it.text, due: it.due, done: !!it.done })),
+        ])
+      ),
+    }));
+
+    const r = await fetch('/api/weekly', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memos: payload }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'エラー');
+
+    weeklyResultEl.innerHTML = `
+      <div class="glass-card weekly-card">
+        <div class="weekly-head">
+          <h3 class="card-label">今週のまとめ</h3>
+          <button class="del-item-btn" data-action="close-weekly" aria-label="閉じる">${X_SVG}</button>
+        </div>
+        <p class="weekly-text">${esc(data.summary)}</p>
+      </div>`;
+  } catch (err) {
+    toast(`エラー: ${err.message}`);
+  } finally {
+    weeklyBtn.disabled = false;
+    weeklyBtn.textContent = original;
+  }
+});
+
+// ===== バックアップ =====
+document.getElementById('exportBtn').addEventListener('click', () => {
+  if (memos.length === 0) {
+    toast('書き出すメモがありません');
+    return;
+  }
+  const data = { app: 'voice-memo', version: 1, exportedAt: new Date().toISOString(), memos };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `voice-memo-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast(`${memos.length}件を書き出しました`);
+});
+
+const importFileEl = document.getElementById('importFile');
+document.getElementById('importBtn').addEventListener('click', () => importFileEl.click());
+
+importFileEl.addEventListener('change', async () => {
+  const file = importFileEl.files && importFileEl.files[0];
+  importFileEl.value = '';
+  if (!file) return;
+  try {
+    const parsed = JSON.parse(await file.text());
+    const arr = Array.isArray(parsed) ? parsed : parsed.memos;
+    if (!Array.isArray(arr)) throw new Error('invalid');
+
+    const map = new Map(memos.map((m) => [m.id, m]));
+    let added = 0;
+    for (const m of arr) {
+      if (m && m.id && m.organized && !map.has(m.id)) {
+        map.set(m.id, m);
+        added++;
+      }
+    }
+    memos = [...map.values()].sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    saveMemos(memos);
+    renderHistory();
+    toast(added > 0 ? `${added}件を復元しました` : '新しいメモはありませんでした');
+  } catch {
+    toast('ファイルを読み込めませんでした');
   }
 });
 

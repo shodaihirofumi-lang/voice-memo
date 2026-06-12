@@ -45,6 +45,11 @@
       <!-- 履歴画面 -->
       <section id="view-history" class="view">
         <h2 class="view-title">履歴</h2>
+        <div class="history-tools">
+          <input type="search" id="searchInput" class="text-input" placeholder="メモを検索">
+          <button id="weeklyBtn" class="pill-btn">週間まとめ</button>
+        </div>
+        <div id="weeklyResult"></div>
         <div id="historyList"></div>
         <p id="historyEmpty" class="empty-message">まだメモがありません。<br>録音タブから話してみてください。</p>
       </section>
@@ -62,6 +67,16 @@
             <button id="clearTokenBtn" class="pill-btn">削除</button>
           </div>
           <p id="tokenStatus" class="token-status"></p>
+        </div>
+
+        <div class="glass-card settings-card">
+          <h3 class="card-label">バックアップ</h3>
+          <p class="settings-help">メモはこの端末のブラウザ内に保存されています。ファイルに書き出しておくと、端末の変更やデータ消去に備えられます。</p>
+          <div class="settings-actions">
+            <button id="exportBtn" class="pill-btn primary">書き出し</button>
+            <button id="importBtn" class="pill-btn">復元</button>
+          </div>
+          <input type="file" id="importFile" accept=".json,application/json" class="hidden">
         </div>
 
         <div class="glass-card settings-card">

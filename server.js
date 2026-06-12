@@ -14,7 +14,7 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.static(join(__dirname, 'public')));
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, version: 5 });
+  res.json({ ok: true, version: 6 });
 });
 
 const WEEKDAYS_JA = ['日', '月', '火', '水', '木', '金', '土'];
@@ -170,6 +170,76 @@ app.post('/api/todoist', async (req, res) => {
     added: results.filter((r) => r.ok).length,
     results,
   });
+});
+
+// 1週間分のメモから週間レビューを生成
+app.post('/api/weekly', async (req, res) => {
+  const memosIn = Array.isArray(req.body && req.body.memos) ? req.body.memos.slice(0, 50) : [];
+  if (memosIn.length === 0) {
+    return res.status(400).json({ error: 'メモがありません' });
+  }
+
+  const catLabels = { tasks: 'タスク', shopping: '買い物', ideas: 'アイデア', reminders: 'リマインダー', notes: 'メモ' };
+  let digest = '';
+  for (const m of memosIn) {
+    digest += `■ ${String(m.date || '')} ${String(m.title || '')}\n`;
+    const cats = m.categories || {};
+    for (const [key, label] of Object.entries(catLabels)) {
+      for (const it of cats[key] || []) {
+        const mark = it.done ? '済' : '未';
+        const due = it.due ? `（期限:${it.due}）` : '';
+        digest += `- [${mark}] ${label}: ${String(it.text || '')}${due}\n`;
+      }
+    }
+  }
+  digest = digest.slice(0, 12000);
+
+  const today = todayJST();
+
+  try {
+    const message = await anthropic.messages.create({
+      model: 'claude-haiku-4-5',
+      max_tokens: 800,
+      messages: [
+        {
+          role: 'user',
+          content: `あなたは私の個人秘書です。以下はこの1週間の音声メモの記録です（[済]=完了、[未]=未完了）。今日は ${today.iso}（${today.weekday}曜日）です。
+
+"""
+${digest}
+"""
+
+この1週間の振り返りを日本語で作ってください。構成:
+
+今週のハイライト（2〜3行）
+完了したこと
+残っているタスク（期限が近い順）
+買い物の残り
+出てきたアイデア
+来週へのひとこと（1〜2行、前向きに）
+
+ルール: 該当がない見出しは省略。Markdown記号（#や*）は使わず、見出しと「・」の箇条書きのプレーンテキストで。全体で400字程度に。`,
+        },
+      ],
+    });
+
+    const summary = message.content
+      .filter((b) => b.type === 'text')
+      .map((b) => b.text)
+      .join('')
+      .trim();
+
+    res.json({ success: true, summary });
+  } catch (err) {
+    console.error('[ERROR]', err);
+    let msg = err.message || 'エラーが発生しました';
+    if (err.status === 401) {
+      msg = 'ClaudeのAPIキーが正しくありません';
+    } else if (msg.includes('credit balance')) {
+      msg = 'Claude(Anthropic)の残高が不足しています';
+    }
+    res.status(500).json({ error: msg });
+  }
 });
 
 const PORT = process.env.PORT || 3000;
