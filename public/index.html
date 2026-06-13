@@ -25,6 +25,7 @@
     <main>
       <!-- 録音画面 -->
       <section id="view-record" class="view active">
+        <div id="todayTasks" class="hidden"></div>
         <div id="live" class="glass-card live-card hidden">
           <h3 class="card-label">認識中</h3>
           <p class="live-text"><span id="liveFinal"></span><span id="liveInterim" class="interim"></span></p>
@@ -57,7 +58,10 @@
         <h2 class="view-title">履歴</h2>
         <div class="history-tools">
           <input type="search" id="searchInput" class="text-input" placeholder="メモを検索">
+        </div>
+        <div class="history-actions">
           <button id="weeklyBtn" class="pill-btn">週間まとめ</button>
+          <button id="pendingBtn" class="pill-btn">未完タスク</button>
         </div>
         <div class="filter-row">
           <button class="filter-btn active" data-cat="">全て</button>
@@ -75,6 +79,7 @@
           <div id="chatResult" class="ai-chat-result hidden"></div>
         </div>
         <div id="weeklyResult"></div>
+        <div id="pendingResult"></div>
         <div id="historyList"></div>
         <p id="historyEmpty" class="empty-message">まだメモがありません。<br>録音タブから話してみてください。</p>
       </section>

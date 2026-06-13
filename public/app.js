@@ -19,6 +19,9 @@ const weeklyResultEl = document.getElementById('weeklyResult');
 const chatInput = document.getElementById('chatInput');
 const chatBtn = document.getElementById('chatBtn');
 const chatResultEl = document.getElementById('chatResult');
+const pendingBtn = document.getElementById('pendingBtn');
+const pendingResultEl = document.getElementById('pendingResult');
+const todayTasksEl = document.getElementById('todayTasks');
 
 
 const MIC_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>';
@@ -94,6 +97,7 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById(`view-${btn.dataset.view}`).classList.add('active');
+    if (btn.dataset.view === 'record') renderTodayTasks();
     if (btn.dataset.view === 'history') renderHistory();
     if (btn.dataset.view === 'settings') renderTrash();
   });
@@ -495,6 +499,103 @@ function cleanupMemo(memo) {
 
 const HISTORY_EMPTY_DEFAULT = 'まだメモがありません。<br>録音タブから話してみてください。';
 
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function getPendingTasks() {
+  const tasks = [];
+  for (const memo of memos) {
+    const cats = (memo.organized && memo.organized.categories) || {};
+    for (const key of ['tasks', 'reminders']) {
+      (cats[key] || []).forEach((item, idx) => {
+        if (!item.done) {
+          tasks.push({
+            memoId: memo.id, cat: key, idx,
+            text: item.text, due: item.due || null,
+            priority: item.priority || null,
+            memoTitle: (memo.organized && memo.organized.title) || '音声メモ',
+            ts: memo.ts,
+          });
+        }
+      });
+    }
+  }
+  tasks.sort((a, b) => {
+    if (a.due && !b.due) return -1;
+    if (!a.due && b.due) return 1;
+    if (a.due && b.due) return a.due.localeCompare(b.due);
+    return (b.ts || 0) - (a.ts || 0);
+  });
+  return tasks;
+}
+
+function renderPendingTasks() {
+  const tasks = getPendingTasks();
+  const today = todayISO();
+  const head = `<div class="weekly-head">
+    <h3 class="card-label">未完了タスク${tasks.length ? `（${tasks.length}件）` : ''}</h3>
+    <button class="del-item-btn" data-action="close-pending" aria-label="閉じる">${X_SVG}</button>
+  </div>`;
+  if (tasks.length === 0) {
+    pendingResultEl.innerHTML = `<div class="glass-card">${head}<p class="pending-empty">未完了のタスクはありません</p></div>`;
+    return;
+  }
+  const rows = tasks.map((t) => {
+    const overdue = t.due && t.due < today;
+    const isToday = t.due === today;
+    const dueCls = overdue ? ' overdue' : isToday ? ' today-due' : '';
+    const dueLabel = t.due ? `<span class="ptask-due${dueCls}">${formatDue(t.due)}${overdue ? ' 期限切れ' : isToday ? ' 今日' : ''}</span>` : '';
+    const pri = t.priority === 'high' ? '<span class="priority-badge high">急</span>'
+      : t.priority === 'medium' ? '<span class="priority-badge medium">中</span>' : '';
+    return `<div class="ptask-row">
+      <input type="checkbox" data-id="${t.memoId}" data-cat="${t.cat}" data-idx="${t.idx}">
+      <div class="ptask-body">
+        <div class="ptask-text">${pri}${esc(t.text)}</div>
+        <div class="ptask-meta">${esc(t.memoTitle)}${dueLabel ? ' · ' + dueLabel : ''}</div>
+      </div>
+    </div>`;
+  }).join('');
+  pendingResultEl.innerHTML = `<div class="glass-card">${head}<div class="ptask-list">${rows}</div></div>`;
+}
+
+function renderTodayTasks() {
+  const today = todayISO();
+  const tasks = [];
+  for (const memo of memos) {
+    const cats = (memo.organized && memo.organized.categories) || {};
+    for (const key of ['tasks', 'reminders']) {
+      (cats[key] || []).forEach((item, idx) => {
+        if (!item.done && item.due && item.due <= today) {
+          tasks.push({ memoId: memo.id, cat: key, idx, text: item.text, due: item.due, priority: item.priority || null });
+        }
+      });
+    }
+  }
+  if (tasks.length === 0) {
+    todayTasksEl.classList.add('hidden');
+    todayTasksEl.innerHTML = '';
+    return;
+  }
+  tasks.sort((a, b) => a.due.localeCompare(b.due));
+  const rows = tasks.slice(0, 5).map((t) => {
+    const overdue = t.due < today;
+    const pri = t.priority === 'high' ? '<span class="priority-badge high">急</span>'
+      : t.priority === 'medium' ? '<span class="priority-badge medium">中</span>' : '';
+    return `<div class="today-task-row">
+      <input type="checkbox" data-id="${t.memoId}" data-cat="${t.cat}" data-idx="${t.idx}">
+      ${pri}<span class="today-task-text${overdue ? ' overdue' : ''}">${esc(t.text)}</span>
+    </div>`;
+  }).join('');
+  const more = tasks.length > 5 ? `<div class="today-task-more">他 ${tasks.length - 5} 件</div>` : '';
+  todayTasksEl.classList.remove('hidden');
+  todayTasksEl.innerHTML = `<div class="glass-card today-tasks-card">
+    <h3 class="card-label">今日のタスク</h3>
+    ${rows}${more}
+  </div>`;
+}
+
 function getDateGroup(ts) {
   const diff = Date.now() - ts;
   const day = 86400000;
@@ -601,14 +702,21 @@ function renderTrash() {
 // ===== 操作（イベント委譲）=====
 document.addEventListener('change', (e) => {
   const cb = e.target;
-  if (cb.matches('input[type="checkbox"][data-id]')) {
-    const memo = findMemo(cb.dataset.id);
-    if (!memo) return;
-    const item = ((memo.organized.categories || {})[cb.dataset.cat] || [])[cb.dataset.idx];
-    if (!item) return;
-    item.done = cb.checked;
-    saveMemos(memos);
-    cb.closest('.item-row').classList.toggle('done', cb.checked);
+  if (!cb.matches('input[type="checkbox"][data-id]')) return;
+  const memo = findMemo(cb.dataset.id);
+  if (!memo) return;
+  const item = ((memo.organized.categories || {})[cb.dataset.cat] || [])[cb.dataset.idx];
+  if (!item) return;
+  item.done = cb.checked;
+  saveMemos(memos);
+  const row = cb.closest('.item-row');
+  if (row) {
+    row.classList.toggle('done', cb.checked);
+  } else if (cb.closest('#pendingResult')) {
+    renderPendingTasks();
+    renderTodayTasks();
+  } else if (cb.closest('#todayTasks')) {
+    renderTodayTasks();
   }
 });
 
@@ -665,6 +773,11 @@ document.addEventListener('click', (e) => {
   if (action === 'close-weekly') {
     weeklyResultEl.innerHTML = '';
     pendingWeeklySave = null;
+    return;
+  }
+
+  if (action === 'close-pending') {
+    pendingResultEl.innerHTML = '';
     return;
   }
 
@@ -880,7 +993,18 @@ textOrganizeBtn.addEventListener('click', async () => {
 });
 
 // ===== 週間まとめ =====
+pendingBtn.addEventListener('click', () => {
+  weeklyResultEl.innerHTML = '';
+  pendingWeeklySave = null;
+  if (pendingResultEl.innerHTML) {
+    pendingResultEl.innerHTML = '';
+  } else {
+    renderPendingTasks();
+  }
+});
+
 weeklyBtn.addEventListener('click', async () => {
+  pendingResultEl.innerHTML = '';
   const recent = memos.filter((m) => Date.now() - m.ts < 7 * 86400000).slice(0, 50);
   if (recent.length === 0) {
     toast('この1週間のメモがありません');
@@ -1071,6 +1195,7 @@ document.getElementById('clearTokenBtn').addEventListener('click', () => {
 
 refreshTokenStatus();
 setStatus('タップして録音');
+renderTodayTasks();
 
 // ===== 共通 =====
 function esc(str) {

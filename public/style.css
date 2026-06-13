@@ -559,18 +559,16 @@ header {
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
 }
 
-/* ===== 検索・週間まとめ ===== */
+/* ===== 検索エリア ===== */
 .history-tools {
   display: flex;
   gap: 0.5rem;
-  margin-bottom: 0.9rem;
 }
 .history-tools .text-input {
   margin-bottom: 0;
   flex: 1;
   min-width: 0;
 }
-#weeklyBtn { flex-shrink: 0; }
 
 .weekly-head {
   display: flex;
@@ -734,6 +732,110 @@ header {
   padding: 0.3rem 0.7rem;
   font-size: 0.76rem;
 }
+
+/* ===== 履歴アクションボタン行 ===== */
+.history-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+.history-tools {
+  margin-bottom: 0.5rem;
+}
+
+/* ===== 未完タスク一覧 ===== */
+.ptask-list { max-height: 60vh; overflow-y: auto; }
+
+.ptask-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.ptask-row:last-child { border-bottom: none; }
+
+.ptask-row input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 19px;
+  height: 19px;
+  border: 1.5px solid #3f3f46;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  margin-top: 0.22rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+.ptask-row input[type="checkbox"]:checked { background: #fff; border-color: #fff; }
+.ptask-row input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px; top: 1.5px;
+  width: 5px; height: 9px;
+  border: solid #09090b;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.ptask-body { flex: 1; min-width: 0; }
+.ptask-text { font-size: 0.92rem; word-break: break-word; }
+.ptask-meta {
+  font-size: 0.74rem;
+  color: var(--text-3);
+  margin-top: 0.12rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+.ptask-due { font-size: 0.72rem; color: var(--text-3); }
+.ptask-due.overdue { color: var(--red-soft); font-weight: 600; }
+.ptask-due.today-due { color: #fbbf24; font-weight: 600; }
+.pending-empty { font-size: 0.88rem; color: var(--text-3); text-align: center; padding: 0.8rem 0; }
+
+/* ===== 録音画面の今日のタスク ===== */
+.today-tasks-card { margin-bottom: 0.85rem; }
+
+.today-task-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.42rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.today-task-row:last-of-type { border-bottom: none; }
+
+.today-task-row input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid #3f3f46;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  margin-top: 0.2rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+.today-task-row input[type="checkbox"]:checked { background: #fff; border-color: #fff; }
+.today-task-row input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px; top: 1px;
+  width: 5px; height: 9px;
+  border: solid #09090b;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.today-task-text { font-size: 0.9rem; word-break: break-word; flex: 1; }
+.today-task-text.overdue { color: var(--red-soft); }
+.today-task-more { font-size: 0.78rem; color: var(--text-3); text-align: right; padding-top: 0.3rem; }
 
 /* ===== カテゴリフィルター ===== */
 .filter-row {
