@@ -119,8 +119,9 @@ function startRecording() {
   finalText = '';
   recognition = new SpeechRecognitionImpl();
   recognition.lang = 'ja-JP';
-  recognition.continuous = true;
+  recognition.continuous = false;  // trueはiOS Safariで動作しないため、onendで再起動する方式に
   recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
 
   recognition.onresult = (e) => {
     let interim = '';
@@ -144,12 +145,15 @@ function startRecording() {
       resetButton();
       setStatus('マイクへのアクセスを許可してください', 'error');
     }
+    // network/no-speech は無視してonendで再起動
   };
 
-  // スマホは無音で勝手に止まるので、録音中なら自動で再開する
+  // 無音で止まったら100ms待って再起動（rapid restartを防ぐ）
   recognition.onend = () => {
     if (isRecording) {
-      try { recognition.start(); } catch {}
+      setTimeout(() => {
+        try { recognition.start(); } catch {}
+      }, 100);
     }
   };
 
