@@ -13,7 +13,7 @@ const GEMINI_MODEL = (process.env.GEMINI_MODEL || 'gemini-2.0-flash').trim();
 
 const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '20mb' }));
 app.use(express.static(join(__dirname, 'public')));
 
 app.get('/api/health', (req, res) => {
@@ -143,6 +143,44 @@ const JSON_FORMAT_SPEC = `以下のJSON形式のみで返してください（Ma
 }
 
 空のカテゴリは省略してください。JSONのみ返してください。`;
+
+// ===== 音声文字起こし（Gemini）=====
+
+app.post('/api/transcribe', async (req, res) => {
+  const { audio, mimeType } = req.body || {};
+  if (!audio) return res.status(400).json({ error: '音声データがありません' });
+  if (!GEMINI_API_KEY) return res.status(503).json({ error: 'GEMINI_API_KEYが設定されていません' });
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { inlineData: { mimeType: mimeType || 'audio/webm', data: audio } },
+            { text: 'この音声を文字起こしして、話された内容を日本語でそのままテキストにしてください。文字起こし以外の説明は不要です。音声がない・聞き取れない場合は空文字を返してください。' },
+          ],
+        }],
+        generationConfig: { maxOutputTokens: 2000 },
+      }),
+    });
+
+    if (!r.ok) {
+      const body = await r.text().catch(() => '');
+      throw new Error(`Gemini APIエラー (${r.status}): ${body.slice(0, 100)}`);
+    }
+
+    const data = await r.json();
+    const parts = (((data.candidates || [])[0] || {}).content || {}).parts || [];
+    const text = parts.map((p) => p.text || '').join('').trim();
+    res.json({ text });
+  } catch (err) {
+    console.error('[TRANSCRIBE ERROR]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ===== メモの整理 =====
 

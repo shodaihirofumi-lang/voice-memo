@@ -17,8 +17,6 @@ const searchInput = document.getElementById('searchInput');
 const weeklyBtn = document.getElementById('weeklyBtn');
 const weeklyResultEl = document.getElementById('weeklyResult');
 
-const SpeechRecognitionImpl =
-  window.SpeechRecognition || window.webkitSpeechRecognition;
 
 const MIC_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>';
 const STOP_SVG = '<svg viewBox="0 0 24 24" fill="#ef4444"><rect x="7" y="7" width="10" height="10" rx="2.5"/></svg>';
@@ -95,10 +93,10 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
   });
 });
 
-// ===== 録音 =====
-let recognition = null;
+// ===== 録音（MediaRecorder → Gemini文字起こし）=====
+let mediaRecorder = null;
+let audioChunks = [];
 let isRecording = false;
-let finalText = '';
 let timerInterval = null;
 let seconds = 0;
 
@@ -110,75 +108,64 @@ recordBtn.addEventListener('click', () => {
   }
 });
 
-function startRecording() {
-  if (!SpeechRecognitionImpl) {
-    setStatus('このブラウザは音声認識に対応していません。ChromeかSafariで開いてください', 'error');
-    return;
-  }
-
-  finalText = '';
-  recognition = new SpeechRecognitionImpl();
-  recognition.lang = 'ja-JP';
-  recognition.continuous = false;  // trueはiOS Safariで動作しないため、onendで再起動する方式に
-  recognition.interimResults = true;
-  recognition.maxAlternatives = 1;
-
-  recognition.onstart = () => {
-    setStatus('録音中... 話してください', 'recording');
-  };
-
-  recognition.onresult = (e) => {
-    let interim = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      const t = e.results[i][0].transcript;
-      if (e.results[i].isFinal) {
-        finalText += t;
-      } else {
-        interim += t;
-      }
-    }
-    liveFinalEl.textContent = finalText;
-    liveInterimEl.textContent = interim;
-  };
-
-  recognition.onerror = (e) => {
-    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-      isRecording = false;
-      stopTimer();
-      stopVisualizer();
-      resetButton();
-      setStatus('マイクへのアクセスを許可してください', 'error');
-    } else if (e.error === 'audio-capture') {
-      isRecording = false;
-      stopTimer();
-      stopVisualizer();
-      resetButton();
-      setStatus('マイクを使用できません。他のアプリがマイクを使用中かもしれません', 'error');
-    } else if (e.error === 'network') {
-      setStatus('ネットワークエラー。インターネット接続を確認してください', 'error');
-    } else if (e.error === 'no-speech') {
-      setStatus('声が聞こえません。マイクに向かって話してください', 'error');
-    } else {
-      setStatus(`音声認識エラー: ${e.error}`, 'error');
-    }
-  };
-
-  // 無音で止まったら100ms待って再起動（rapid restartを防ぐ）
-  recognition.onend = () => {
-    if (isRecording) {
-      setTimeout(() => {
-        try { recognition.start(); } catch {}
-      }, 100);
-    }
-  };
-
+async function startRecording() {
+  let stream;
   try {
-    recognition.start();
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch {
-    setStatus('音声認識を開始できませんでした。ページを再読み込みしてください', 'error');
+    setStatus('マイクへのアクセスを許可してください', 'error');
     return;
   }
 
+  audioChunks = [];
+  const mimeType = ['audio/webm', 'audio/mp4', 'audio/ogg'].find(
+    (t) => MediaRecorder.isTypeSupported(t)
+  ) || '';
+  mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+
+  mediaRecorder.ondataavailable = (e) => {
+    if (e.data && e.data.size > 0) audioChunks.push(e.data);
+  };
+
+  mediaRecorder.onstop = async () => {
+    stream.getTracks().forEach((t) => t.stop());
+
+    if (audioChunks.length === 0) {
+      appendTargetId = null;
+      resetButton();
+      liveEl.classList.add('hidden');
+      setStatus('音声が録音できませんでした。もう一度お試しください', 'error');
+      return;
+    }
+
+    const type = mediaRecorder.mimeType || mimeType || 'audio/webm';
+    const blob = new Blob(audioChunks, { type });
+
+    recordBtn.disabled = true;
+    recordBtn.classList.add('processing');
+    micIcon.innerHTML = MIC_SVG;
+    liveEl.classList.add('hidden');
+    setStatus('文字起こし中...', 'processing');
+
+    const text = await transcribeAudio(blob, type);
+    if (!text) {
+      resetButton();
+      return;
+    }
+
+    liveFinalEl.textContent = text;
+    liveInterimEl.textContent = '';
+    liveEl.classList.remove('hidden');
+    setStatus('AIが整理中です...', 'processing');
+
+    if (appendTargetId) {
+      appendToMemo(appendTargetId, text);
+    } else {
+      organize(text);
+    }
+  };
+
+  mediaRecorder.start(500);
   isRecording = true;
   recordBtn.classList.add('recording');
   micIcon.innerHTML = STOP_SVG;
@@ -188,35 +175,46 @@ function startRecording() {
   liveEl.classList.remove('hidden');
   resultEl.innerHTML = '';
   startTimer();
-  // startVisualizer();  // マイク競合を避けるため無効化
+  startVisualizer(stream);
 }
 
 function stopRecording() {
+  if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
   isRecording = false;
-  if (recognition) {
-    try { recognition.stop(); } catch {}
-  }
   stopTimer();
   stopVisualizer();
   recordBtn.classList.remove('recording');
+  mediaRecorder.stop();
+}
 
-  const text = finalText.trim();
-  if (!text) {
-    appendTargetId = null;
-    resetButton();
-    liveEl.classList.add('hidden');
-    setStatus('音声が認識できませんでした。もう一度お試しください', 'error');
-    return;
-  }
+async function transcribeAudio(blob, mimeType) {
+  try {
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
 
-  recordBtn.disabled = true;
-  recordBtn.classList.add('processing');
-  micIcon.innerHTML = MIC_SVG;
-  setStatus('AIが整理中です...', 'processing');
-  if (appendTargetId) {
-    appendToMemo(appendTargetId, text);
-  } else {
-    organize(text);
+    const r = await fetch('/api/transcribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ audio: base64, mimeType }),
+    });
+    const data = await r.json();
+
+    if (!r.ok) {
+      setStatus(`文字起こしエラー: ${data.error || 'エラー'}`, 'error');
+      return null;
+    }
+    if (!data.text || !data.text.trim()) {
+      setStatus('音声が認識できませんでした。もう一度お試しください', 'error');
+      return null;
+    }
+    return data.text.trim();
+  } catch (err) {
+    setStatus(`エラー: ${err.message}`, 'error');
+    return null;
   }
 }
 
@@ -296,9 +294,9 @@ let audioCtx = null;
 let analyser = null;
 let vizRaf = null;
 
-async function startVisualizer() {
+async function startVisualizer(existingStream) {
   try {
-    vizStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    vizStream = existingStream || await navigator.mediaDevices.getUserMedia({ audio: true });
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 128;
@@ -341,10 +339,7 @@ async function startVisualizer() {
 function stopVisualizer() {
   if (vizRaf) cancelAnimationFrame(vizRaf);
   vizRaf = null;
-  if (vizStream) {
-    vizStream.getTracks().forEach((t) => t.stop());
-    vizStream = null;
-  }
+  vizStream = null;
   if (audioCtx) {
     audioCtx.close().catch(() => {});
     audioCtx = null;
