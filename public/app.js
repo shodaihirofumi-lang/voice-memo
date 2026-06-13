@@ -16,6 +16,9 @@ const toastEl = document.getElementById('toast');
 const searchInput = document.getElementById('searchInput');
 const weeklyBtn = document.getElementById('weeklyBtn');
 const weeklyResultEl = document.getElementById('weeklyResult');
+const chatInput = document.getElementById('chatInput');
+const chatBtn = document.getElementById('chatBtn');
+const chatResultEl = document.getElementById('chatResult');
 
 
 const MIC_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>';
@@ -55,6 +58,7 @@ function saveMemos(memos) {
 let memos = loadMemos();
 let editingId = null;
 let searchQuery = '';
+let categoryFilter = '';
 let currentResultId = null;
 let appendTargetId = null;
 
@@ -489,29 +493,69 @@ function cleanupMemo(memo) {
 
 const HISTORY_EMPTY_DEFAULT = 'まだメモがありません。<br>録音タブから話してみてください。';
 
+function getDateGroup(ts) {
+  const diff = Date.now() - ts;
+  const day = 86400000;
+  if (diff < day) return '今日';
+  if (diff < 2 * day) return '昨日';
+  if (diff < 7 * day) return '今週';
+  return 'それ以前';
+}
+
+function completionStats(memo) {
+  const cats = (memo.organized && memo.organized.categories) || {};
+  let total = 0, done = 0;
+  for (const items of Object.values(cats)) {
+    for (const it of items) { total++; if (it.done) done++; }
+  }
+  return { total, done };
+}
+
 function renderHistory() {
   const q = searchQuery.trim().toLowerCase();
-  const list = q ? memos.filter((m) => memoSearchText(m).includes(q)) : memos;
+  let list = q ? memos.filter((m) => memoSearchText(m).includes(q)) : memos;
+
+  if (categoryFilter) {
+    list = list.filter((m) => {
+      const cats = (m.organized && m.organized.categories) || {};
+      return (cats[categoryFilter] || []).length > 0;
+    });
+  }
 
   if (list.length === 0) {
     historyListEl.innerHTML = '';
-    historyEmptyEl.innerHTML = q
-      ? `「${esc(searchQuery.trim())}」に一致するメモがありません`
+    historyEmptyEl.innerHTML = q || categoryFilter
+      ? '条件に一致するメモがありません'
       : HISTORY_EMPTY_DEFAULT;
     historyEmptyEl.classList.remove('hidden');
     return;
   }
   historyEmptyEl.classList.add('hidden');
+
   const sorted = list
     .slice()
     .sort((a, b) => ((b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)) || ((b.ts || 0) - (a.ts || 0)));
-  historyListEl.innerHTML = sorted
-    .map(
-      (m) => `
-      <div class="glass-card memo-card history-card${editingId === m.id ? ' open' : ''}" data-card="${m.id}">
+
+  const groupOrder = ['今日', '昨日', '今週', 'それ以前'];
+  const groups = {};
+  for (const m of sorted) {
+    const g = getDateGroup(m.ts || 0);
+    (groups[g] = groups[g] || []).push(m);
+  }
+
+  let html = '';
+  for (const group of groupOrder) {
+    if (!groups[group]) continue;
+    html += `<div class="date-group-label">${group}</div>`;
+    for (const m of groups[group]) {
+      const { total, done } = completionStats(m);
+      const badge = total > 0
+        ? `<span class="completion-badge${done === total ? ' all-done' : ''}">${done}/${total}</span>`
+        : '';
+      html += `<div class="glass-card memo-card history-card${editingId === m.id ? ' open' : ''}" data-card="${m.id}">
         <div class="history-head" data-toggle="${m.id}">
-          <div>
-            <div class="memo-title">${esc((m.organized && m.organized.title) || '音声メモ')}</div>
+          <div class="history-head-main">
+            <div class="memo-title-row"><span class="memo-title">${esc((m.organized && m.organized.title) || '音声メモ')}</span>${badge}</div>
             <div class="memo-date">${formatDate(m.ts)}</div>
           </div>
           <div class="head-right">
@@ -520,9 +564,10 @@ function renderHistory() {
           </div>
         </div>
         <div class="history-body">${memoBodyHTML(m, { deletable: true, hideHeader: true, editing: editingId === m.id })}</div>
-      </div>`
-    )
-    .join('');
+      </div>`;
+    }
+  }
+  historyListEl.innerHTML = html;
 }
 
 // ===== ゴミ箱描画 =====
@@ -566,6 +611,15 @@ document.addEventListener('change', (e) => {
 });
 
 document.addEventListener('click', (e) => {
+  const filterBtn = e.target.closest('.filter-btn');
+  if (filterBtn) {
+    document.querySelectorAll('.filter-btn').forEach((b) => b.classList.remove('active'));
+    filterBtn.classList.add('active');
+    categoryFilter = filterBtn.dataset.cat;
+    renderHistory();
+    return;
+  }
+
   const btn = e.target.closest('[data-action]');
 
   if (!btn) {
@@ -707,6 +761,44 @@ searchInput.addEventListener('input', () => {
   searchQuery = searchInput.value;
   renderHistory();
 });
+
+// ===== AI会話モード =====
+async function submitChat() {
+  const question = chatInput.value.trim();
+  if (!question) return;
+
+  chatBtn.disabled = true;
+  chatBtn.textContent = '...';
+  chatResultEl.classList.remove('hidden');
+  chatResultEl.innerHTML = '<div class="ai-chat-thinking">考え中...</div>';
+
+  try {
+    const payload = memos.slice(0, 30).map((m) => ({
+      date: formatDate(m.ts),
+      title: (m.organized && m.organized.title) || '',
+      categories: (m.organized && m.organized.categories) || {},
+    }));
+
+    const r = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, memos: payload }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'エラー');
+
+    chatResultEl.innerHTML = `<div class="ai-chat-answer">${esc(data.answer)}</div>`;
+    chatInput.value = '';
+  } catch (err) {
+    chatResultEl.innerHTML = `<div class="ai-chat-error">${esc(err.message)}</div>`;
+  } finally {
+    chatBtn.disabled = false;
+    chatBtn.textContent = '送信';
+  }
+}
+
+chatBtn.addEventListener('click', submitChat);
+chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitChat(); });
 
 // ===== テキスト入力モード =====
 const textCard = document.getElementById('textCard');

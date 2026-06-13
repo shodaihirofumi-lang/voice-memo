@@ -423,6 +423,48 @@ ${digest}
   }
 });
 
+// ===== AI会話モード =====
+
+app.post('/api/chat', async (req, res) => {
+  const question = ((req.body && req.body.question) || '').trim();
+  const memosIn = Array.isArray(req.body && req.body.memos) ? req.body.memos.slice(0, 30) : [];
+
+  if (!question) return res.status(400).json({ error: '質問を入力してください' });
+
+  const catLabels = { tasks: 'タスク', shopping: '買い物', ideas: 'アイデア', reminders: 'リマインダー', notes: 'メモ' };
+  let context = '';
+  for (const m of memosIn) {
+    context += `■ ${m.date} ${m.title}\n`;
+    for (const [key, label] of Object.entries(catLabels)) {
+      for (const it of (m.categories && m.categories[key]) || []) {
+        const mark = it.done ? '済' : '未';
+        context += `- [${mark}] ${label}: ${it.text}${it.due ? `（期限:${it.due}）` : ''}\n`;
+      }
+    }
+  }
+
+  const today = todayJST();
+
+  try {
+    const { text: answer } = await callAI(
+      `あなたは私のパーソナルアシスタントです。以下は私の音声メモの記録です。今日は${today.iso}（${today.weekday}曜日）です。
+
+メモ一覧:
+"""
+${context || '（メモなし）'}
+"""
+
+質問: ${question}
+
+メモの内容を参照して、簡潔に日本語で答えてください。メモに関係ない内容は答えないでください。`,
+      500
+    );
+    res.json({ answer });
+  } catch (err) {
+    res.status(500).json({ error: aiErrorMessage(err) });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🎙️  声でメモ: http://localhost:${PORT}`);

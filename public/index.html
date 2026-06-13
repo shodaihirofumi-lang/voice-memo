@@ -59,6 +59,21 @@
           <input type="search" id="searchInput" class="text-input" placeholder="メモを検索">
           <button id="weeklyBtn" class="pill-btn">週間まとめ</button>
         </div>
+        <div class="filter-row">
+          <button class="filter-btn active" data-cat="">全て</button>
+          <button class="filter-btn" data-cat="tasks">タスク</button>
+          <button class="filter-btn" data-cat="shopping">買い物</button>
+          <button class="filter-btn" data-cat="ideas">アイデア</button>
+          <button class="filter-btn" data-cat="reminders">リマインダー</button>
+          <button class="filter-btn" data-cat="notes">メモ</button>
+        </div>
+        <div class="ai-chat-box">
+          <div class="ai-chat-row">
+            <input type="text" id="chatInput" class="text-input" placeholder="AIにメモについて質問...">
+            <button id="chatBtn" class="pill-btn primary">送信</button>
+          </div>
+          <div id="chatResult" class="ai-chat-result hidden"></div>
+        </div>
         <div id="weeklyResult"></div>
         <div id="historyList"></div>
         <p id="historyEmpty" class="empty-message">まだメモがありません。<br>録音タブから話してみてください。</p>
