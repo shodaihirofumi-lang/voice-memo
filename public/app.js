@@ -425,7 +425,7 @@ function memoBodyHTML(memo, opts) {
 function renderResult() {
   const m = currentResultId ? findMemo(currentResultId) : null;
   resultEl.innerHTML = m
-    ? `<div class="glass-card memo-card">${memoBodyHTML(m, { editing: editingId === m.id })}</div>`
+    ? `<div class="glass-card memo-card">${memoBodyHTML(m, { editing: editingId === m.id, deletable: true })}</div>`
     : '';
 }
 
