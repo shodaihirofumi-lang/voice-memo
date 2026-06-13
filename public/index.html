@@ -25,15 +25,12 @@
     <main>
       <!-- 録音画面 -->
       <section id="view-record" class="view active">
-        <div class="record-area">
-          <button id="recordBtn" class="record-btn" aria-label="録音">
-            <span class="mic-icon" id="micIcon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></span>
-          </button>
-          <canvas id="visualizer" width="680" height="88"></canvas>
-          <div id="timer" class="timer"></div>
-          <div id="status" class="status"></div>
-          <button id="textModeBtn" class="text-mode-btn">キーボードで入力</button>
+        <div id="live" class="glass-card live-card hidden">
+          <h3 class="card-label">認識中</h3>
+          <p class="live-text"><span id="liveFinal"></span><span id="liveInterim" class="interim"></span></p>
         </div>
+
+        <div id="result"></div>
 
         <div id="textCard" class="glass-card hidden">
           <h3 class="card-label">テキストから整理</h3>
@@ -44,12 +41,15 @@
           </div>
         </div>
 
-        <div id="live" class="glass-card live-card hidden">
-          <h3 class="card-label">認識中</h3>
-          <p class="live-text"><span id="liveFinal"></span><span id="liveInterim" class="interim"></span></p>
+        <div class="record-area">
+          <canvas id="visualizer" width="680" height="88"></canvas>
+          <div id="timer" class="timer"></div>
+          <div id="status" class="status"></div>
+          <button id="recordBtn" class="record-btn" aria-label="録音">
+            <span class="mic-icon" id="micIcon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></span>
+          </button>
+          <button id="textModeBtn" class="text-mode-btn">キーボードで入力</button>
         </div>
-
-        <div id="result"></div>
       </section>
 
       <!-- 履歴画面 -->

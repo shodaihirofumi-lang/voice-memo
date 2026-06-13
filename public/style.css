@@ -57,6 +57,12 @@ header {
 .view { display: none; }
 .view.active { display: block; animation: fadeUp 0.25s ease; }
 
+#view-record.active {
+  display: flex;
+  flex-direction: column;
+  min-height: 72vh;
+}
+
 .view-title {
   font-size: 1.05rem;
   font-weight: 600;
@@ -74,7 +80,8 @@ header {
   flex-direction: column;
   align-items: center;
   gap: 1.05rem;
-  margin: 3.2rem 0 2.4rem;
+  margin-top: auto;
+  padding-top: 1.6rem;
 }
 
 .record-btn {
