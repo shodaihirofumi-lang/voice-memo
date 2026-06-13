@@ -188,7 +188,7 @@ function startRecording() {
   liveEl.classList.remove('hidden');
   resultEl.innerHTML = '';
   startTimer();
-  startVisualizer();
+  // startVisualizer();  // マイク競合を避けるため無効化
 }
 
 function stopRecording() {
