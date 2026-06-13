@@ -144,8 +144,18 @@ function startRecording() {
       stopVisualizer();
       resetButton();
       setStatus('マイクへのアクセスを許可してください', 'error');
+    } else if (e.error === 'audio-capture') {
+      isRecording = false;
+      stopTimer();
+      stopVisualizer();
+      resetButton();
+      setStatus('マイクを使用できません。他のアプリがマイクを使用中かもしれません', 'error');
+    } else if (e.error === 'network') {
+      setStatus('ネットワークエラー。インターネット接続を確認してください', 'error');
+    } else if (e.error !== 'no-speech') {
+      setStatus(`音声認識エラー: ${e.error}`, 'error');
     }
-    // network/no-speech は無視してonendで再起動
+    // no-speech は無視してonendで再起動
   };
 
   // 無音で止まったら100ms待って再起動（rapid restartを防ぐ）
