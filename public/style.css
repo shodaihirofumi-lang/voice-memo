@@ -733,6 +733,34 @@ header {
   font-size: 0.76rem;
 }
 
+/* ===== スワイプ削除 ===== */
+.swipe-wrapper {
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  margin-bottom: 0.85rem;
+}
+.swipe-wrapper .glass-card {
+  margin-bottom: 0;
+  position: relative;
+}
+.swipe-delete-bg {
+  position: absolute;
+  inset: 0;
+  background: rgba(239, 68, 68, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  padding-right: 1.4rem;
+  color: #fff;
+  font-size: 0.84rem;
+  font-weight: 600;
+  opacity: 0;
+  border-radius: 16px;
+  pointer-events: none;
+}
+
 /* ===== 履歴アクションボタン行 ===== */
 .history-actions {
   display: flex;

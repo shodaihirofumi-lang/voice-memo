@@ -29,6 +29,7 @@ const STOP_SVG = '<svg viewBox="0 0 24 24" fill="#ef4444"><rect x="7" y="7" widt
 const CHEVRON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
 const X_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
 const PIN_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"/></svg>';
+const TRASH_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
 
 const CATEGORY_CONFIG = {
   tasks:     { label: 'タスク',       color: '#4ade80' },
@@ -655,18 +656,21 @@ function renderHistory() {
       const badge = total > 0
         ? `<span class="completion-badge${done === total ? ' all-done' : ''}">${done}/${total}</span>`
         : '';
-      html += `<div class="glass-card memo-card history-card${editingId === m.id ? ' open' : ''}" data-card="${m.id}">
-        <div class="history-head" data-toggle="${m.id}">
-          <div class="history-head-main">
-            <div class="memo-title-row"><span class="memo-title">${esc((m.organized && m.organized.title) || '音声メモ')}</span>${badge}</div>
-            <div class="memo-date">${formatDate(m.ts)}</div>
+      html += `<div class="swipe-wrapper" data-swipe-id="${m.id}">
+        <div class="swipe-delete-bg">${TRASH_SVG}<span>削除</span></div>
+        <div class="glass-card memo-card history-card${editingId === m.id ? ' open' : ''}" data-card="${m.id}">
+          <div class="history-head" data-toggle="${m.id}">
+            <div class="history-head-main">
+              <div class="memo-title-row"><span class="memo-title">${esc((m.organized && m.organized.title) || '音声メモ')}</span>${badge}</div>
+              <div class="memo-date">${formatDate(m.ts)}</div>
+            </div>
+            <div class="head-right">
+              <button class="pin-btn${m.pinned ? ' pinned' : ''}" data-action="pin" data-id="${m.id}" aria-label="ピン留め">${PIN_SVG}</button>
+              <span class="chevron">${CHEVRON_SVG}</span>
+            </div>
           </div>
-          <div class="head-right">
-            <button class="pin-btn${m.pinned ? ' pinned' : ''}" data-action="pin" data-id="${m.id}" aria-label="ピン留め">${PIN_SVG}</button>
-            <span class="chevron">${CHEVRON_SVG}</span>
-          </div>
+          <div class="history-body">${memoBodyHTML(m, { deletable: true, hideHeader: true, editing: editingId === m.id })}</div>
         </div>
-        <div class="history-body">${memoBodyHTML(m, { deletable: true, hideHeader: true, editing: editingId === m.id })}</div>
       </div>`;
     }
   }
@@ -1244,6 +1248,69 @@ function startTimer() {
 function stopTimer() {
   clearInterval(timerInterval);
   timerEl.textContent = '';
+}
+
+// ===== スワイプ削除 =====
+{
+  let swipeEl = null, swipeId = null, swipeStartX = 0, swipeStartY = 0, axisLocked = false;
+  const THRESHOLD = 88;
+
+  historyListEl.addEventListener('touchstart', (e) => {
+    const card = e.target.closest('.history-card');
+    if (!card || card.classList.contains('open') || e.target.closest('.history-body')) return;
+    swipeEl = card;
+    swipeId = card.closest('[data-swipe-id]') && card.closest('[data-swipe-id]').dataset.swipeId;
+    swipeStartX = e.touches[0].clientX;
+    swipeStartY = e.touches[0].clientY;
+    axisLocked = false;
+  }, { passive: true });
+
+  historyListEl.addEventListener('touchmove', (e) => {
+    if (!swipeEl) return;
+    const dx = e.touches[0].clientX - swipeStartX;
+    const dy = e.touches[0].clientY - swipeStartY;
+    if (!axisLocked) {
+      if (Math.abs(dy) > Math.abs(dx)) { swipeEl = null; return; }
+      axisLocked = true;
+    }
+    e.preventDefault();
+    if (dx >= 0) return;
+    const tx = Math.max(dx, -THRESHOLD * 1.8);
+    swipeEl.style.cssText = `transform:translateX(${tx}px);transition:none`;
+    const bg = swipeEl.previousElementSibling;
+    if (bg) bg.style.opacity = Math.min(Math.abs(tx) / THRESHOLD, 1);
+  }, { passive: false });
+
+  historyListEl.addEventListener('touchend', () => {
+    if (!swipeEl) return;
+    const match = swipeEl.style.transform.match(/-?\d+\.?\d*/);
+    const dx = match ? parseFloat(match[0]) : 0;
+    const bg = swipeEl.previousElementSibling;
+
+    if (dx <= -THRESHOLD) {
+      swipeEl.style.cssText = 'transform:translateX(-110%);transition:transform 0.2s ease';
+      const id = swipeId;
+      setTimeout(() => {
+        const memo = findMemo(id);
+        if (memo) {
+          memos = memos.filter((m) => m.id !== id);
+          if (currentResultId === id) currentResultId = null;
+          if (editingId === id) editingId = null;
+          memo.deletedAt = Date.now();
+          trash.unshift(memo);
+          trash = trash.slice(0, 20);
+          saveTrash(trash);
+          saveMemos(memos);
+          rerenderAll();
+          toast('ゴミ箱に移動しました（設定から復元できます）');
+        }
+      }, 210);
+    } else {
+      swipeEl.style.cssText = 'transform:translateX(0);transition:transform 0.25s ease';
+      if (bg) bg.style.opacity = 0;
+    }
+    swipeEl = null; swipeId = null; axisLocked = false;
+  });
 }
 
 // ===== PWA =====
