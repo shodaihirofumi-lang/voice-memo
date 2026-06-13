@@ -62,6 +62,7 @@ let categoryFilter = '';
 let currentResultId = null;
 let appendTargetId = null;
 let pendingChatSave = null;
+let pendingWeeklySave = null;
 
 function findMemo(id) {
   return memos.find((m) => m.id === id);
@@ -663,6 +664,29 @@ document.addEventListener('click', (e) => {
 
   if (action === 'close-weekly') {
     weeklyResultEl.innerHTML = '';
+    pendingWeeklySave = null;
+    return;
+  }
+
+  if (action === 'save-weekly' && pendingWeeklySave) {
+    const today = new Date();
+    const label = `${today.getMonth() + 1}/${today.getDate()} 週間まとめ`;
+    const memo = {
+      id: 'm' + Date.now() + Math.random().toString(36).slice(2, 6),
+      ts: Date.now(),
+      transcription: '',
+      organized: {
+        title: label,
+        summary: '',
+        categories: { notes: [{ text: pendingWeeklySave, due: null, done: false, priority: null }] },
+      },
+    };
+    memos.unshift(memo);
+    saveMemos(memos);
+    pendingWeeklySave = null;
+    btn.textContent = '✓ 保存済み';
+    btn.disabled = true;
+    toast('週間まとめをメモに保存しました');
     return;
   }
 
@@ -891,10 +915,14 @@ weeklyBtn.addEventListener('click', async () => {
       <div class="glass-card weekly-card">
         <div class="weekly-head">
           <h3 class="card-label">今週のまとめ</h3>
-          <button class="del-item-btn" data-action="close-weekly" aria-label="閉じる">${X_SVG}</button>
+          <div class="weekly-head-actions">
+            <button class="pill-btn sm" data-action="save-weekly">メモに保存</button>
+            <button class="del-item-btn" data-action="close-weekly" aria-label="閉じる">${X_SVG}</button>
+          </div>
         </div>
         <p class="weekly-text">${esc(data.summary)}</p>
       </div>`;
+    pendingWeeklySave = data.summary;
   } catch (err) {
     toast(`エラー: ${err.message}`);
   } finally {
