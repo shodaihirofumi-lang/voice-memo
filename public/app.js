@@ -123,6 +123,10 @@ function startRecording() {
   recognition.interimResults = true;
   recognition.maxAlternatives = 1;
 
+  recognition.onstart = () => {
+    setStatus('録音中... 話してください', 'recording');
+  };
+
   recognition.onresult = (e) => {
     let interim = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -152,10 +156,11 @@ function startRecording() {
       setStatus('マイクを使用できません。他のアプリがマイクを使用中かもしれません', 'error');
     } else if (e.error === 'network') {
       setStatus('ネットワークエラー。インターネット接続を確認してください', 'error');
-    } else if (e.error !== 'no-speech') {
+    } else if (e.error === 'no-speech') {
+      setStatus('声が聞こえません。マイクに向かって話してください', 'error');
+    } else {
       setStatus(`音声認識エラー: ${e.error}`, 'error');
     }
-    // no-speech は無視してonendで再起動
   };
 
   // 無音で止まったら100ms待って再起動（rapid restartを防ぐ）
