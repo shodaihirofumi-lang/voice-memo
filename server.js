@@ -10,6 +10,7 @@ const app = express();
 const ANTHROPIC_API_KEY = (process.env.ANTHROPIC_API_KEY || '').trim();
 const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || '').trim();
 const GEMINI_MODEL = (process.env.GEMINI_MODEL || 'gemini-2.0-flash').trim();
+const GROQ_API_KEY = (process.env.GROQ_API_KEY || '').trim();
 
 const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
@@ -149,7 +150,42 @@ const JSON_FORMAT_SPEC = `以下のJSON形式のみで返してください（Ma
 app.post('/api/transcribe', async (req, res) => {
   const { audio, mimeType } = req.body || {};
   if (!audio) return res.status(400).json({ error: '音声データがありません' });
-  if (!GEMINI_API_KEY) return res.status(503).json({ error: 'GEMINI_API_KEYが設定されていません' });
+
+  const audioBuffer = Buffer.from(audio, 'base64');
+  const ext = (mimeType || 'audio/webm').includes('mp4') ? 'mp4'
+    : (mimeType || '').includes('ogg') ? 'ogg' : 'webm';
+
+  // Groq Whisper（GROQ_API_KEYがあれば優先）
+  if (GROQ_API_KEY) {
+    try {
+      const form = new FormData();
+      form.append('file', new Blob([audioBuffer], { type: mimeType || 'audio/webm' }), `rec.${ext}`);
+      form.append('model', 'whisper-large-v3');
+      form.append('language', 'ja');
+      form.append('response_format', 'json');
+
+      const r = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${GROQ_API_KEY}` },
+        body: form,
+      });
+
+      if (!r.ok) {
+        const body = await r.text().catch(() => '');
+        throw new Error(`Groq APIエラー (${r.status}): ${body.slice(0, 120)}`);
+      }
+
+      const data = await r.json();
+      return res.json({ text: (data.text || '').trim(), stt: 'groq' });
+    } catch (err) {
+      console.error('[GROQ STT ERROR]', err.message);
+      if (!GEMINI_API_KEY) return res.status(500).json({ error: err.message });
+      console.warn('[Groq失敗→Geminiにフォールバック]');
+    }
+  }
+
+  // Gemini（フォールバック）
+  if (!GEMINI_API_KEY) return res.status(503).json({ error: 'GROQ_API_KEYまたはGEMINI_API_KEYを設定してください' });
 
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
@@ -157,27 +193,25 @@ app.post('/api/transcribe', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{
-          parts: [
-            { inlineData: { mimeType: mimeType || 'audio/webm', data: audio } },
-            { text: 'この音声を文字起こしして、話された内容を日本語でそのままテキストにしてください。文字起こし以外の説明は不要です。音声がない・聞き取れない場合は空文字を返してください。' },
-          ],
-        }],
+        contents: [{ parts: [
+          { inlineData: { mimeType: mimeType || 'audio/webm', data: audio } },
+          { text: 'この音声を文字起こしして、話された内容を日本語でそのままテキストにしてください。文字起こし以外は不要です。' },
+        ]}],
         generationConfig: { maxOutputTokens: 2000 },
       }),
     });
 
     if (!r.ok) {
       const body = await r.text().catch(() => '');
-      throw new Error(`Gemini APIエラー (${r.status}): ${body.slice(0, 100)}`);
+      throw new Error(`Gemini APIエラー (${r.status}): ${body.slice(0, 120)}`);
     }
 
     const data = await r.json();
     const parts = (((data.candidates || [])[0] || {}).content || {}).parts || [];
     const text = parts.map((p) => p.text || '').join('').trim();
-    res.json({ text });
+    res.json({ text, stt: 'gemini' });
   } catch (err) {
-    console.error('[TRANSCRIBE ERROR]', err);
+    console.error('[GEMINI STT ERROR]', err);
     res.status(500).json({ error: err.message });
   }
 });
