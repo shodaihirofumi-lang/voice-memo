@@ -61,6 +61,7 @@ let searchQuery = '';
 let categoryFilter = '';
 let currentResultId = null;
 let appendTargetId = null;
+let pendingChatSave = null;
 
 function findMemo(id) {
   return memos.find((m) => m.id === id);
@@ -611,6 +612,27 @@ document.addEventListener('change', (e) => {
 });
 
 document.addEventListener('click', (e) => {
+  if (e.target.closest('.ai-save-btn') && pendingChatSave) {
+    const { question, answer } = pendingChatSave;
+    const memo = {
+      id: 'm' + Date.now() + Math.random().toString(36).slice(2, 6),
+      ts: Date.now(),
+      transcription: `Q: ${question}`,
+      organized: {
+        title: `AI: ${question.slice(0, 18)}`,
+        summary: question,
+        categories: { notes: [{ text: answer, due: null, done: false, priority: null }] },
+      },
+    };
+    memos.unshift(memo);
+    saveMemos(memos);
+    pendingChatSave = null;
+    e.target.textContent = '✓ 保存済み';
+    e.target.disabled = true;
+    toast('AIの回答をメモに保存しました');
+    return;
+  }
+
   const filterBtn = e.target.closest('.filter-btn');
   if (filterBtn) {
     document.querySelectorAll('.filter-btn').forEach((b) => b.classList.remove('active'));
@@ -787,7 +809,8 @@ async function submitChat() {
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'エラー');
 
-    chatResultEl.innerHTML = `<div class="ai-chat-answer">${esc(data.answer)}</div>`;
+    pendingChatSave = { question, answer: data.answer };
+    chatResultEl.innerHTML = `<div class="ai-chat-answer">${esc(data.answer)}</div><button class="pill-btn sm ai-save-btn">メモに保存</button>`;
     chatInput.value = '';
   } catch (err) {
     chatResultEl.innerHTML = `<div class="ai-chat-error">${esc(err.message)}</div>`;
