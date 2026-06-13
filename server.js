@@ -104,10 +104,11 @@ function normalizeItems(arr) {
   if (!Array.isArray(arr)) return [];
   return arr
     .map((it) => {
-      if (typeof it === 'string') return { text: it.trim(), due: null, done: false };
+      if (typeof it === 'string') return { text: it.trim(), due: null, done: false, priority: null };
       if (it && typeof it === 'object' && it.text) {
         const due = typeof it.due === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(it.due) ? it.due : null;
-        return { text: String(it.text).trim(), due, done: it.done === true };
+        const priority = ['high', 'medium'].includes(it.priority) ? it.priority : null;
+        return { text: String(it.text).trim(), due, done: it.done === true, priority };
       }
       return null;
     })
@@ -135,15 +136,16 @@ const JSON_FORMAT_SPEC = `以下のJSON形式のみで返してください（Ma
   "title": "20文字以内のタイトル",
   "summary": "1〜2文の要約",
   "categories": {
-    "tasks": [{"text": "やること", "due": null, "done": false}],
-    "shopping": [{"text": "買う物", "due": null, "done": false}],
-    "ideas": [{"text": "アイデア", "due": null, "done": false}],
-    "reminders": [{"text": "覚えておくこと", "due": null, "done": false}],
-    "notes": [{"text": "その他のメモ", "due": null, "done": false}]
+    "tasks": [{"text": "やること", "due": null, "done": false, "priority": "high"}],
+    "shopping": [{"text": "買う物", "due": null, "done": false, "priority": null}],
+    "ideas": [{"text": "アイデア", "due": null, "done": false, "priority": null}],
+    "reminders": [{"text": "覚えておくこと", "due": null, "done": false, "priority": "medium"}],
+    "notes": [{"text": "その他のメモ", "due": null, "done": false, "priority": null}]
   }
 }
 
-空のカテゴリは省略してください。JSONのみ返してください。`;
+- priorityはtasks・remindersのみ設定: "high"=今日中・緊急、"medium"=近いうちに、null=特に急がない
+- 空のカテゴリは省略。JSONのみ返してください。`;
 
 // ===== 音声文字起こし（Gemini）=====
 

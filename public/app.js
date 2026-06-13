@@ -379,11 +379,13 @@ function memoBodyHTML(memo, opts) {
         </li>`;
       } else {
         const due = item.due ? `<span class="due">${formatDue(item.due)}</span>` : '';
+        const pri = item.priority === 'high' ? '<span class="priority-badge high">急</span>'
+          : item.priority === 'medium' ? '<span class="priority-badge medium">中</span>' : '';
         html += `
         <li class="item-row${item.done ? ' done' : ''}">
           <input type="checkbox" ${item.done ? 'checked' : ''}
             data-id="${memo.id}" data-cat="${key}" data-idx="${idx}">
-          <span class="item-text">${esc(item.text)}</span>${due}
+          ${pri}<span class="item-text">${esc(item.text)}</span>${due}
         </li>`;
       }
     });
@@ -422,11 +424,40 @@ function memoBodyHTML(memo, opts) {
   return html;
 }
 
+function findRelatedMemos(memo, n = 2) {
+  const words = memoSearchText(memo).split(/[\s、。！？\n]+/).filter((w) => w.length > 1);
+  if (words.length === 0) return [];
+  return memos
+    .filter((m) => m.id !== memo.id)
+    .map((m) => {
+      const text = memoSearchText(m);
+      const score = words.filter((w) => text.includes(w)).length;
+      return { m, score };
+    })
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, n)
+    .map(({ m }) => m);
+}
+
+function relatedMemosHTML(related) {
+  return `<div class="related-section">
+    <div class="related-label">関連メモ</div>
+    ${related.map((m) => `
+      <button class="related-item" data-action="open-related" data-id="${m.id}">
+        <span class="related-title">${esc((m.organized && m.organized.title) || '音声メモ')}</span>
+        <span class="related-date">${formatDate(m.ts)}</span>
+      </button>`).join('')}
+  </div>`;
+}
+
 function renderResult() {
   const m = currentResultId ? findMemo(currentResultId) : null;
-  resultEl.innerHTML = m
-    ? `<div class="glass-card memo-card">${memoBodyHTML(m, { editing: editingId === m.id, deletable: true })}</div>`
-    : '';
+  if (!m) { resultEl.innerHTML = ''; return; }
+  const related = findRelatedMemos(m);
+  resultEl.innerHTML =
+    `<div class="glass-card memo-card">${memoBodyHTML(m, { editing: editingId === m.id, deletable: true })}</div>`
+    + (related.length ? relatedMemosHTML(related) : '');
 }
 
 function rerenderAll() {
@@ -546,6 +577,13 @@ document.addEventListener('click', (e) => {
   }
 
   const action = btn.dataset.action;
+
+  if (action === 'open-related') {
+    currentResultId = btn.dataset.id;
+    document.querySelector('.nav-btn[data-view="record"]').click();
+    renderResult();
+    return;
+  }
 
   if (action === 'close-weekly') {
     weeklyResultEl.innerHTML = '';
