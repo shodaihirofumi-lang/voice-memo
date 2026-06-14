@@ -55,11 +55,42 @@ const LEVELS = [
   { level: 10, xp: 20000,  title: '神' },
 ];
 
+const BADGES = [
+  { id: 'first_memo',  icon: '🎙️', label: '初録音',     desc: '初めてメモを保存',           check: (g) => (g.memoCount || 0) >= 1 },
+  { id: 'task_10',     icon: '✅', label: '10タスク',    desc: 'タスクを10個完了',            check: (g) => (g.totalCompleted || 0) >= 10 },
+  { id: 'task_50',     icon: '💪', label: '50タスク',    desc: 'タスクを50個完了',            check: (g) => (g.totalCompleted || 0) >= 50 },
+  { id: 'task_100',    icon: '🏆', label: '100タスク',   desc: 'タスクを100個完了',           check: (g) => (g.totalCompleted || 0) >= 100 },
+  { id: 'streak_3',    icon: '🔥', label: '3日連続',     desc: '3日連続でタスクを完了',       check: (g) => (g.streak || 0) >= 3 },
+  { id: 'streak_7',    icon: '🌟', label: '1週間連続',   desc: '7日連続でタスクを完了',       check: (g) => (g.streak || 0) >= 7 },
+  { id: 'streak_30',   icon: '👑', label: '1ヶ月連続',   desc: '30日連続でタスクを完了',      check: (g) => (g.streak || 0) >= 30 },
+  { id: 'urgent_5',    icon: '⚡', label: '緊急5連撃',   desc: '緊急タスクを5個撃破',         check: (g) => (g.urgentCompleted || 0) >= 5 },
+  { id: 'urgent_20',   icon: '💀', label: '緊急20連撃',  desc: '緊急タスクを20個撃破',        check: (g) => (g.urgentCompleted || 0) >= 20 },
+  { id: 'combo_5',     icon: '🎯', label: 'コンボ王',    desc: 'コンボ×5を達成',              check: (g) => (g.maxCombo || 0) >= 5 },
+  { id: 'level_5',     icon: '⭐', label: 'Lv.5到達',    desc: 'レベル5に到達',               check: (g) => getLevelInfo(g.xp).cur.level >= 5 },
+  { id: 'level_max',   icon: '🌠', label: '神',          desc: 'レベル10（最大）に到達',      check: (g) => getLevelInfo(g.xp).cur.level >= 10 },
+  { id: 'lucky',       icon: '🎰', label: 'ラッキー',    desc: 'ガチャで大当たり（XP×3）',    check: (g) => !!g.gotJackpot },
+  { id: 'night_owl',   icon: '🦉', label: '夜型',        desc: '深夜（23時以降）にタスク完了',check: (g) => !!g.nightOwl },
+  { id: 'early_bird',  icon: '🌅', label: '朝型',        desc: '早朝（6時前）にタスク完了',   check: (g) => !!g.earlyBird },
+];
+
+const DAILY_MISSIONS = [
+  { type: 'tasks_3',  label: 'タスクを3個完了する',     target: 3, bonusXP: 50,  key: 'tasksDone' },
+  { type: 'tasks_5',  label: 'タスクを5個完了する',     target: 5, bonusXP: 100, key: 'tasksDone' },
+  { type: 'urgent_1', label: '緊急タスクを1個撃破する', target: 1, bonusXP: 80,  key: 'urgentDone' },
+  { type: 'combo_3',  label: 'コンボ×3を達成する',      target: 1, bonusXP: 60,  key: 'comboDone' },
+  { type: 'record_1', label: '音声メモを1件録る',        target: 1, bonusXP: 40,  key: 'memosDone' },
+];
+
 // ===== ゲーム =====
 function loadGameStats() {
+  const defaults = { xp: 0, streak: 0, lastDate: null, totalCompleted: 0,
+    maxStreak: 0, urgentCompleted: 0, weekdayStats: [0,0,0,0,0,0,0],
+    badges: [], dailyMission: null, maxCombo: 0, memoCount: 0,
+    gotJackpot: false, nightOwl: false, earlyBird: false };
   try {
-    return JSON.parse(localStorage.getItem(GAME_KEY)) || { xp: 0, streak: 0, lastDate: null, totalCompleted: 0 };
-  } catch { return { xp: 0, streak: 0, lastDate: null, totalCompleted: 0 }; }
+    const saved = JSON.parse(localStorage.getItem(GAME_KEY));
+    return saved ? { ...defaults, ...saved } : defaults;
+  } catch { return defaults; }
 }
 function saveGameStats(s) { localStorage.setItem(GAME_KEY, JSON.stringify(s)); }
 
@@ -129,24 +160,166 @@ function showComboPopup(count) {
   comboPopupTimer = setTimeout(() => el.classList.remove('show'), 1300);
 }
 
+function checkGacha() {
+  if (Math.random() > 0.22) return null;
+  const r = Math.random();
+  if (r < 0.05) return { label: '🎰 JACKPOT！XP×3!!', mult: 3, rare: true };
+  if (r < 0.30) return { label: '🎉 ラッキー！+50XP', bonus: 50 };
+  return { label: '✨ ボーナス！+30XP', bonus: 30 };
+}
+
+function showGachaPopup(gacha) {
+  const el = document.createElement('div');
+  el.className = 'gacha-popup' + (gacha.rare ? ' jackpot' : '');
+  el.textContent = gacha.label;
+  document.body.appendChild(el);
+  el.addEventListener('animationend', () => el.remove(), { once: true });
+  if (gacha.rare) showConfetti(true);
+}
+
+function checkAchievements(prevBadges) {
+  if (!Array.isArray(gameStats.badges)) gameStats.badges = [];
+  const newBadges = [];
+  for (const b of BADGES) {
+    if (!prevBadges.includes(b.id) && !gameStats.badges.includes(b.id) && b.check(gameStats)) {
+      gameStats.badges.push(b.id);
+      newBadges.push(b);
+    }
+  }
+  if (newBadges.length > 0) {
+    saveGameStats(gameStats);
+    newBadges.forEach((b, i) => setTimeout(() => toast(`🏅 実績解除！「${b.label}」${b.icon}`), i * 700 + 300));
+  }
+}
+
+function getDailyMission() {
+  const today = todayISO();
+  if (gameStats.dailyMission && gameStats.dailyMission.date === today) return gameStats.dailyMission;
+  const m = DAILY_MISSIONS[Math.floor(Math.random() * DAILY_MISSIONS.length)];
+  gameStats.dailyMission = { date: today, type: m.type, label: m.label, target: m.target, bonusXP: m.bonusXP, key: m.key, progress: 0, completed: false };
+  saveGameStats(gameStats);
+  return gameStats.dailyMission;
+}
+
+function updateDailyMission(key) {
+  const dm = getDailyMission();
+  if (dm.completed || dm.key !== key) return;
+  dm.progress = Math.min(dm.progress + 1, dm.target);
+  if (dm.progress >= dm.target) {
+    dm.completed = true;
+    gameStats.xp += dm.bonusXP;
+    saveGameStats(gameStats);
+    renderGameStats();
+    renderDailyMission();
+    setTimeout(() => toast(`🎯 デイリーミッション達成！+${dm.bonusXP} XP`), 500);
+    showConfetti(false);
+  } else {
+    saveGameStats(gameStats);
+    renderDailyMission();
+  }
+}
+
+function renderDailyMission() {
+  const el = document.getElementById('dailyMission');
+  if (!el) return;
+  const dm = getDailyMission();
+  const pct = Math.round((dm.progress / dm.target) * 100);
+  const done = dm.completed;
+  el.innerHTML = `<div class="glass-card daily-mission-card${done ? ' done' : ''}">
+    <div class="dm-head">
+      <span class="card-label">デイリーミッション</span>
+      ${done ? '<span class="dm-badge">✅ 達成！</span>' : `<span class="dm-xp">+${dm.bonusXP} XP</span>`}
+    </div>
+    <div class="dm-label">${esc(dm.label)}</div>
+    <div class="dm-bar-wrap">
+      <div class="dm-bar"><div class="dm-bar-fill" style="width:${pct}%"></div></div>
+      <span class="dm-progress">${dm.progress}/${dm.target}</span>
+    </div>
+  </div>`;
+}
+
+function renderStats() {
+  const el = document.getElementById('statsSection');
+  if (!el) return;
+  const ws = Array.isArray(gameStats.weekdayStats) ? gameStats.weekdayStats : [0,0,0,0,0,0,0];
+  const maxW = Math.max(...ws, 1);
+  el.innerHTML = `<div class="glass-card settings-card">
+    <h3 class="card-label">あなたの記録</h3>
+    <div class="stats-grid">
+      <div class="stat-item"><span class="stat-num">${gameStats.totalCompleted || 0}</span><span class="stat-label">総完了タスク</span></div>
+      <div class="stat-item"><span class="stat-num">${gameStats.xp || 0}</span><span class="stat-label">累計XP</span></div>
+      <div class="stat-item"><span class="stat-num">${gameStats.streak || 0}</span><span class="stat-label">現在ストリーク</span></div>
+      <div class="stat-item"><span class="stat-num">${gameStats.maxStreak || 0}</span><span class="stat-label">最長ストリーク</span></div>
+    </div>
+    <div class="stats-week">
+      <div class="stats-week-label">曜日別完了数</div>
+      <div class="stats-bars">
+        ${WEEKDAYS.map((d, i) => `<div class="stats-bar-col">
+          <div class="stats-bar-fill${ws[i] === Math.max(...ws) && ws[i] > 0 ? ' best' : ''}" style="height:${Math.max(4, Math.round((ws[i] / maxW) * 48))}px"></div>
+          <div class="stats-bar-day">${d}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderBadges() {
+  const el = document.getElementById('badgesSection');
+  if (!el) return;
+  const unlocked = Array.isArray(gameStats.badges) ? gameStats.badges : [];
+  el.innerHTML = `<div class="glass-card settings-card">
+    <h3 class="card-label">実績バッジ（${unlocked.length}/${BADGES.length}）</h3>
+    <div class="badge-grid">
+      ${BADGES.map(b => {
+        const got = unlocked.includes(b.id);
+        return `<div class="badge-item${got ? '' : ' locked'}" title="${esc(b.desc)}">
+          <span class="badge-icon">${got ? b.icon : '🔒'}</span>
+          <span class="badge-label">${esc(b.label)}</span>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
 function onTaskComplete(item) {
   comboCount++;
   clearTimeout(comboTimer);
   comboTimer = setTimeout(() => { comboCount = 0; }, 3000);
+  if (comboCount > (gameStats.maxCombo || 0)) gameStats.maxCombo = comboCount;
 
   const baseXP = item.priority === 'high' ? 50 : item.priority === 'medium' ? 20 : 10;
-  const bonus = comboCount >= 5 ? 30 : comboCount >= 4 ? 20 : comboCount >= 3 ? 10 : comboCount >= 2 ? 5 : 0;
-  const totalXP = baseXP + bonus;
+  const comboBonus = comboCount >= 5 ? 30 : comboCount >= 4 ? 20 : comboCount >= 3 ? 10 : comboCount >= 2 ? 5 : 0;
 
+  const gacha = checkGacha();
+  let gachaBonus = 0;
+  if (gacha) {
+    gachaBonus = gacha.mult ? baseXP * (gacha.mult - 1) : (gacha.bonus || 0);
+    if (gacha.rare) gameStats.gotJackpot = true;
+  }
+
+  const totalXP = baseXP + comboBonus + gachaBonus;
   const prevInfo = getLevelInfo(gameStats.xp);
+  const prevBadges = [...(gameStats.badges || [])];
+
   gameStats.xp += totalXP;
   gameStats.totalCompleted = (gameStats.totalCompleted || 0) + 1;
+  if (item.priority === 'high') gameStats.urgentCompleted = (gameStats.urgentCompleted || 0) + 1;
+
+  const hour = new Date().getHours();
+  if (hour >= 23) gameStats.nightOwl = true;
+  if (hour < 6) gameStats.earlyBird = true;
+
+  const dow = new Date().getDay();
+  if (!Array.isArray(gameStats.weekdayStats)) gameStats.weekdayStats = [0,0,0,0,0,0,0];
+  gameStats.weekdayStats[dow]++;
 
   const today = todayISO();
   if (gameStats.lastDate !== today) {
     gameStats.streak = gameStats.lastDate === prevDayISO(today) ? (gameStats.streak || 0) + 1 : 1;
     gameStats.lastDate = today;
   }
+  if ((gameStats.streak || 0) > (gameStats.maxStreak || 0)) gameStats.maxStreak = gameStats.streak;
+
   saveGameStats(gameStats);
 
   const newInfo = getLevelInfo(gameStats.xp);
@@ -154,7 +327,13 @@ function onTaskComplete(item) {
   showConfetti(isUrgent);
   showXpPopup(totalXP, isUrgent, newInfo.cur.level > prevInfo.cur.level);
   if (comboCount >= 2) showComboPopup(comboCount);
+  if (gacha) setTimeout(() => showGachaPopup(gacha), 350);
+
   renderGameStats();
+  checkAchievements(prevBadges);
+  updateDailyMission('tasksDone');
+  if (item.priority === 'high') updateDailyMission('urgentDone');
+  if (comboCount >= 3) updateDailyMission('comboDone');
 }
 
 // ===== 保存（localStorage）=====
@@ -214,9 +393,9 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById(`view-${btn.dataset.view}`).classList.add('active');
-    if (btn.dataset.view === 'record') renderTodayTasks();
+    if (btn.dataset.view === 'record') { renderTodayTasks(); renderDailyMission(); }
     if (btn.dataset.view === 'history') renderHistory();
-    if (btn.dataset.view === 'settings') renderTrash();
+    if (btn.dataset.view === 'settings') { renderTrash(); renderStats(); renderBadges(); }
   });
 });
 
@@ -364,6 +543,12 @@ async function organize(text) {
     };
     memos.unshift(memo);
     saveMemos(memos);
+
+    const prevBadges = [...(gameStats.badges || [])];
+    gameStats.memoCount = (gameStats.memoCount || 0) + 1;
+    saveGameStats(gameStats);
+    checkAchievements(prevBadges);
+    updateDailyMission('memosDone');
 
     liveEl.classList.add('hidden');
     currentResultId = memo.id;
@@ -1321,6 +1506,7 @@ refreshTokenStatus();
 setStatus('タップして録音');
 renderTodayTasks();
 renderGameStats();
+renderDailyMission();
 
 // ===== 共通 =====
 function esc(str) {
