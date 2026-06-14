@@ -205,6 +205,7 @@ app.post('/api/transcribe', async (req, res) => {
 
     if (!r.ok) {
       const body = await r.text().catch(() => '');
+      if (r.status === 429) throw new Error('QUOTA');
       throw new Error(`Gemini APIエラー (${r.status}): ${body.slice(0, 120)}`);
     }
 
@@ -214,7 +215,10 @@ app.post('/api/transcribe', async (req, res) => {
     res.json({ text, stt: 'gemini' });
   } catch (err) {
     console.error('[GEMINI STT ERROR]', err);
-    res.status(500).json({ error: err.message });
+    const msg = err.message === 'QUOTA'
+      ? '文字起こしAI(Gemini)の無料枠が上限に達しました。Groqの無料APIキーをRenderに設定すると安定します（Groqは音声の無料枠が大きい）。'
+      : err.message;
+    res.status(500).json({ error: msg });
   }
 });
 
