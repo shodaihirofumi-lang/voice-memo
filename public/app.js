@@ -200,7 +200,8 @@ function getQuest() {
 }
 function attackEnemy(item) {
   const q = getQuest();
-  const dmg = item.priority === 'high' ? 3 : item.priority === 'medium' ? 2 : 1;
+  const bonus = taskTypeBonus(item.text);
+  const dmg = (item.priority === 'high' ? 3 : item.priority === 'medium' ? 2 : 1) * bonus.dmgMult;
   q.hp = Math.max(0, q.hp - dmg);
   if (q.hp === 0) {
     const e = q.isBoss ? BOSS_ENEMIES[q.idx] : MONSTERS[q.idx];
@@ -218,6 +219,24 @@ function attackEnemy(item) {
     saveGameStats(gameStats);
   }
   renderBattle();
+  showAttackEffect(dmg, bonus);
+}
+
+// タスク完了時の攻撃エフェクト（斬撃・敵ゆれ・ダメージ数字）
+function showAttackEffect(dmg, bonus) {
+  const card = document.querySelector('#bossCard .battle-card');
+  if (!card) return;
+  card.classList.remove('slash');
+  void card.offsetWidth;
+  card.classList.add('slash');
+  const avatar = card.querySelector('.battle-avatar');
+  if (avatar) { avatar.classList.remove('hit'); void avatar.offsetWidth; avatar.classList.add('hit'); }
+  const big = dmg >= 8 || (bonus && bonus.type === 'work');
+  const el = document.createElement('div');
+  el.className = 'dmg-pop' + (bonus && bonus.type !== 'normal' ? ' ' + bonus.type : '') + (big ? ' big' : '');
+  el.textContent = '-' + dmg;
+  card.appendChild(el);
+  el.addEventListener('animationend', () => el.remove(), { once: true });
 }
 function renderBattle() {
   const el = document.getElementById('bossCard');
@@ -277,10 +296,13 @@ function showConfetti(isUrgent) {
   }
 }
 
-function showXpPopup(xp, isUrgent, leveledUp) {
+function showXpPopup(xp, isUrgent, leveledUp, bonus) {
+  const special = bonus && bonus.type !== 'normal';
   const el = document.createElement('div');
-  el.className = 'xp-popup' + (isUrgent ? ' urgent' : '');
-  el.textContent = isUrgent ? `🎯 緊急タスク撃破！ +${xp} XP` : `+${xp} XP`;
+  el.className = 'xp-popup' + (isUrgent ? ' urgent' : '') + (special ? ' ' + bonus.type : '');
+  el.textContent = special ? `${bonus.label}！ +${xp} XP`
+    : isUrgent ? `🎯 緊急タスク撃破！ +${xp} XP`
+    : `+${xp} XP`;
   document.body.appendChild(el);
   el.addEventListener('animationend', () => el.remove(), { once: true });
   if (leveledUp) {
@@ -422,13 +444,26 @@ function renderBadges() {
   </div>`;
 }
 
+// 特別タスク：瞑想=XP3倍/ダメージ2倍、仕事=XP2倍/ダメージ5倍
+function taskTypeBonus(text) {
+  const t = String(text || '');
+  if (/瞑想|めいそう|マインドフルネス|座禅|ヨガ/.test(t)) {
+    return { type: 'meditation', xpMult: 3, dmgMult: 2, label: '🧘 瞑想ボーナス' };
+  }
+  if (/仕事|業務|会議|商談|営業|プレゼン|資料|打ち合わせ|打合せ|クライアント|取引先|納品|請求|報告|提案|案件|タスク管理|資料作成|メール対応/.test(t)) {
+    return { type: 'work', xpMult: 2, dmgMult: 5, label: '💼 仕事ボーナス' };
+  }
+  return { type: 'normal', xpMult: 1, dmgMult: 1, label: '' };
+}
+
 function onTaskComplete(item) {
   comboCount++;
   clearTimeout(comboTimer);
   comboTimer = setTimeout(() => { comboCount = 0; }, 3000);
   if (comboCount > (gameStats.maxCombo || 0)) gameStats.maxCombo = comboCount;
 
-  const baseXP = item.priority === 'high' ? 50 : item.priority === 'medium' ? 20 : 10;
+  const bonus = taskTypeBonus(item.text);
+  const baseXP = (item.priority === 'high' ? 50 : item.priority === 'medium' ? 20 : 10) * bonus.xpMult;
   const comboBonus = comboCount >= 5 ? 30 : comboCount >= 4 ? 20 : comboCount >= 3 ? 10 : comboCount >= 2 ? 5 : 0;
 
   const gacha = checkGacha();
@@ -466,8 +501,8 @@ function onTaskComplete(item) {
   const newInfo = getLevelInfo(gameStats.xp);
   const isUrgent = item.priority === 'high';
   const leveledUp = newInfo.cur.level > prevInfo.cur.level;
-  showConfetti(isUrgent);
-  showXpPopup(totalXP, isUrgent, leveledUp);
+  showConfetti(isUrgent || bonus.type === 'work');
+  showXpPopup(totalXP, isUrgent, leveledUp, bonus);
   if (comboCount >= 2) showComboPopup(comboCount);
   if (gacha) setTimeout(() => showGachaPopup(gacha), 350);
 
