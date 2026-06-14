@@ -980,8 +980,11 @@ header {
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
-.today-task-text { font-size: 0.9rem; word-break: break-word; flex: 1; }
-.today-task-text.overdue { color: var(--red-soft); }
+.today-task-body { display: flex; align-items: baseline; gap: 0.35rem; flex: 1; flex-wrap: wrap; }
+.today-task-text { font-size: 0.9rem; word-break: break-word; }
+.today-task-due { font-size: 0.72rem; color: var(--text-3); white-space: nowrap; }
+.today-task-due.overdue { color: var(--red-soft); font-weight: 600; }
+.today-task-due.today-due { color: #fbbf24; font-weight: 600; }
 .today-task-more { font-size: 0.78rem; color: var(--text-3); text-align: right; padding-top: 0.3rem; }
 
 /* ===== カテゴリフィルター ===== */

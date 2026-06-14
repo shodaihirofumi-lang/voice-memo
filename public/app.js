@@ -684,7 +684,7 @@ function renderTodayTasks() {
     const cats = (memo.organized && memo.organized.categories) || {};
     for (const key of ['tasks', 'reminders']) {
       (cats[key] || []).forEach((item, idx) => {
-        if (!item.done && item.due && item.due <= today) {
+        if (!item.done && item.due) {
           tasks.push({ memoId: memo.id, cat: key, idx, text: item.text, due: item.due, priority: item.priority || null });
         }
       });
@@ -696,19 +696,22 @@ function renderTodayTasks() {
     return;
   }
   tasks.sort((a, b) => a.due.localeCompare(b.due));
-  const rows = tasks.slice(0, 5).map((t) => {
+  const rows = tasks.slice(0, 8).map((t) => {
     const overdue = t.due < today;
+    const isToday = t.due === today;
+    const dueCls = overdue ? ' overdue' : isToday ? ' today-due' : '';
+    const dueLabel = `<span class="today-task-due${dueCls}">${formatDue(t.due)}${overdue ? ' 期限切れ' : isToday ? ' 今日' : ''}</span>`;
     const pri = t.priority === 'high' ? '<span class="priority-badge high">急</span>'
       : t.priority === 'medium' ? '<span class="priority-badge medium">中</span>' : '';
     return `<div class="today-task-row">
       <input type="checkbox" data-id="${t.memoId}" data-cat="${t.cat}" data-idx="${t.idx}">
-      ${pri}<span class="today-task-text${overdue ? ' overdue' : ''}">${esc(t.text)}</span>
+      <span class="today-task-body">${pri}<span class="today-task-text">${esc(t.text)}</span>${dueLabel}</span>
     </div>`;
   }).join('');
-  const more = tasks.length > 5 ? `<div class="today-task-more">他 ${tasks.length - 5} 件</div>` : '';
+  const more = tasks.length > 8 ? `<div class="today-task-more">他 ${tasks.length - 8} 件</div>` : '';
   todayTasksEl.classList.remove('hidden');
   todayTasksEl.innerHTML = `<div class="glass-card today-tasks-card">
-    <h3 class="card-label">今日のタスク</h3>
+    <h3 class="card-label">タスク</h3>
     ${rows}${more}
   </div>`;
 }
