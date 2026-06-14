@@ -71,23 +71,36 @@ const BADGES = [
   { id: 'lucky',       icon: '🎰', label: 'ラッキー',    desc: 'ガチャで大当たり（XP×3）',    check: (g) => !!g.gotJackpot },
   { id: 'night_owl',   icon: '🦉', label: '夜型',        desc: '深夜（23時以降）にタスク完了',check: (g) => !!g.nightOwl },
   { id: 'early_bird',  icon: '🌅', label: '朝型',        desc: '早朝（6時前）にタスク完了',   check: (g) => !!g.earlyBird },
-  { id: 'boss_1',      icon: '⚔️', label: 'ボスハンター',desc: '週間ボスを初撃破',            check: (g) => (g.bossDefeats || 0) >= 1 },
-  { id: 'boss_5',      icon: '🛡️', label: 'ボスマスター',desc: '週間ボスを5体撃破',          check: (g) => (g.bossDefeats || 0) >= 5 },
+  { id: 'slayer_10',   icon: '🗡️', label: '10体撃破',    desc: 'モンスターを10体倒す',        check: (g) => (g.enemiesDefeated || 0) >= 10 },
+  { id: 'slayer_50',   icon: '🏰', label: '50体撃破',    desc: 'モンスターを50体倒す',        check: (g) => (g.enemiesDefeated || 0) >= 50 },
+  { id: 'boss_1',      icon: '⚔️', label: 'ボスハンター',desc: 'ボスを初撃破',                check: (g) => (g.bossDefeats || 0) >= 1 },
+  { id: 'boss_5',      icon: '🛡️', label: 'ボスマスター',desc: 'ボスを5体撃破',              check: (g) => (g.bossDefeats || 0) >= 5 },
 ];
 
-const BOSSES = [
-  { name: 'タスク鬼', glow: '#ef4444', svg:
-    `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path d="M12 9 L16 17 M36 9 L32 17" stroke="#fcd34d" stroke-width="3.5" stroke-linecap="round"/><circle cx="24" cy="27" r="15" fill="#ef4444"/><path d="M15 22 L21 24 M33 22 L27 24" stroke="#7f1d1d" stroke-width="2" stroke-linecap="round"/><circle cx="19" cy="26" r="2.6" fill="#fff"/><circle cx="29" cy="26" r="2.6" fill="#fff"/><path d="M17 33 Q24 38 31 33" stroke="#7f1d1d" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M20.5 33 l1.5 3 1.5-3 Z M25.5 33 l1.5 3 1.5-3 Z" fill="#fff"/></svg>` },
-  { name: '締切ドラゴン', glow: '#22c55e', svg:
-    `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path d="M14 11 L17 18 M34 11 L31 18" stroke="#15803d" stroke-width="3" stroke-linecap="round"/><circle cx="24" cy="27" r="15" fill="#22c55e"/><ellipse cx="24" cy="33" rx="9" ry="6" fill="#16a34a"/><circle cx="20.5" cy="34" r="1.2" fill="#052e16"/><circle cx="27.5" cy="34" r="1.2" fill="#052e16"/><circle cx="19" cy="24" r="2.8" fill="#fff"/><circle cx="29" cy="24" r="2.8" fill="#fff"/><circle cx="19" cy="24.5" r="1.2" fill="#052e16"/><circle cx="29" cy="24.5" r="1.2" fill="#052e16"/></svg>` },
-  { name: '先延ばし幽霊', glow: '#c084fc', svg:
-    `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path d="M11 28 a13 13 0 0 1 26 0 V41 l-4-3 -4 3 -4-3 -4 3 -3-2 Z" fill="#e9d5ff"/><circle cx="19" cy="25" r="2.8" fill="#6b21a8"/><circle cx="29" cy="25" r="2.8" fill="#6b21a8"/><ellipse cx="24" cy="31" rx="2.4" ry="3" fill="#6b21a8"/></svg>` },
-  { name: 'ダラダラ恐竜', glow: '#14b8a6', svg:
-    `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path d="M11 17 l4 6 4-6 4 6 4-6 4 6 4-6" fill="#0f766e"/><circle cx="24" cy="29" r="13" fill="#14b8a6"/><circle cx="20" cy="27" r="2.6" fill="#fff"/><circle cx="20" cy="27.4" r="1.2" fill="#042f2e"/><circle cx="30" cy="27" r="2.6" fill="#fff"/><circle cx="30" cy="27.4" r="1.2" fill="#042f2e"/><path d="M18 34 h12 M21.5 34 v3 M25 34 v3 M28.5 34 v3" stroke="#0f766e" stroke-width="1.8" stroke-linecap="round"/></svg>` },
-  { name: '放置ゾンビ', glow: '#84cc16', svg:
-    `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><circle cx="24" cy="27" r="15" fill="#84cc16"/><path d="M16 23 l4 4 M20 23 l-4 4" stroke="#365314" stroke-width="2" stroke-linecap="round"/><circle cx="30" cy="25" r="2.6" fill="#fff"/><circle cx="30" cy="25.4" r="1.2" fill="#1a2e05"/><path d="M18 34 h12 M21 32 v4 M25 32 v4 M29 32 v4" stroke="#365314" stroke-width="1.8" stroke-linecap="round"/></svg>` },
-  { name: 'やること星人', glow: '#a855f7', svg:
-    `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path d="M18 12 L16 5 M30 12 L32 5" stroke="#7e22ce" stroke-width="2.5" stroke-linecap="round"/><circle cx="16" cy="4.5" r="2.2" fill="#d8b4fe"/><circle cx="32" cy="4.5" r="2.2" fill="#d8b4fe"/><ellipse cx="24" cy="28" rx="14" ry="16" fill="#a855f7"/><ellipse cx="18.5" cy="27" rx="3" ry="5" fill="#1a1a2e" transform="rotate(20 18.5 27)"/><ellipse cx="29.5" cy="27" rx="3" ry="5" fill="#1a1a2e" transform="rotate(-20 29.5 27)"/></svg>` },
+// 雑魚モンスター（5体ごとのボス以外で順番に出現）
+const MONSTERS = [
+  { name: 'スライム', glow: '#3b82f6', svg:
+    `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path d="M24 9 C17 9 11 23 10 31 C9.4 36.5 16 39 24 39 C32 39 38.6 36.5 38 31 C37 23 31 9 24 9 Z" fill="#3b82f6"/><path d="M14 34 Q24 38 34 34" stroke="#1e40af" stroke-width="1.4" fill="none" opacity="0.5"/><ellipse cx="19.5" cy="27" rx="2.6" ry="3" fill="#fff"/><ellipse cx="28.5" cy="27" rx="2.6" ry="3" fill="#fff"/><circle cx="19.5" cy="28" r="1.3" fill="#0b1e3f"/><circle cx="28.5" cy="28" r="1.3" fill="#0b1e3f"/><path d="M20 33 Q24 36 28 33" stroke="#0b1e3f" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>` },
+  { name: 'あかスライム', glow: '#ef4444', svg:
+    `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path d="M24 9 C17 9 11 23 10 31 C9.4 36.5 16 39 24 39 C32 39 38.6 36.5 38 31 C37 23 31 9 24 9 Z" fill="#ef4444"/><path d="M16 25 l4 1.6 M32 25 l-4 1.6" stroke="#7f1d1d" stroke-width="1.6" stroke-linecap="round"/><ellipse cx="19.5" cy="28.5" rx="2.4" ry="2.8" fill="#fff"/><ellipse cx="28.5" cy="28.5" rx="2.4" ry="2.8" fill="#fff"/><circle cx="19.5" cy="29.2" r="1.2" fill="#3f0a0a"/><circle cx="28.5" cy="29.2" r="1.2" fill="#3f0a0a"/><path d="M20 34.5 Q24 32.5 28 34.5" stroke="#7f1d1d" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>` },
+  { name: 'こうもり', glow: '#8b5cf6', svg:
+    `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path d="M5 19 L17 23 L14 31 Z" fill="#6d28d9"/><path d="M43 19 L31 23 L34 31 Z" fill="#6d28d9"/><circle cx="24" cy="26" r="10" fill="#8b5cf6"/><path d="M18 18 l2 5 M30 18 l-2 5" stroke="#8b5cf6" stroke-width="3.4" stroke-linecap="round"/><circle cx="20.5" cy="25" r="1.9" fill="#fff"/><circle cx="27.5" cy="25" r="1.9" fill="#fff"/><circle cx="20.5" cy="25.4" r="0.9" fill="#2e1065"/><circle cx="27.5" cy="25.4" r="0.9" fill="#2e1065"/><path d="M22 30 l1 1.6 1-1.6 1 1.6 1-1.6" stroke="#fff" stroke-width="1" fill="none"/></svg>` },
+  { name: 'がいこつ', glow: '#e2e8f0', svg:
+    `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path d="M24 8 C14 8 9 15 9 23 C9 28 12 31 15 32 L15 37 C15 38.2 16 39 18 39 L30 39 C32 39 33 38.2 33 37 L33 32 C36 31 39 28 39 23 C39 15 34 8 24 8 Z" fill="#f1f5f9"/><circle cx="18" cy="23" r="4.2" fill="#1e293b"/><circle cx="30" cy="23" r="4.2" fill="#1e293b"/><circle cx="18" cy="22.5" r="1.4" fill="#f87171"/><circle cx="30" cy="22.5" r="1.4" fill="#f87171"/><path d="M24 28 l-2 4 4 0 Z" fill="#1e293b"/><path d="M19 36 v3 M24 36 v3 M29 36 v3" stroke="#94a3b8" stroke-width="1.4"/></svg>` },
+  { name: 'おばけ', glow: '#22d3ee', svg:
+    `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path d="M11 28 a13 13 0 0 1 26 0 V41 l-4-3 -4 3 -4-3 -4 3 -3-2 Z" fill="#a5f3fc"/><circle cx="19" cy="25" r="2.8" fill="#0e7490"/><circle cx="29" cy="25" r="2.8" fill="#0e7490"/><ellipse cx="24" cy="31" rx="2.2" ry="2.9" fill="#0e7490"/></svg>` },
+  { name: 'キノコ', glow: '#f43f5e', svg:
+    `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect x="18" y="26" width="12" height="13" rx="5" fill="#fde68a"/><circle cx="22" cy="33" r="1.4" fill="#78350f"/><circle cx="26.5" cy="33" r="1.4" fill="#78350f"/><path d="M21 37 Q24 39 27 37" stroke="#78350f" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M9 27 C9 16 16 10 24 10 C32 10 39 16 39 27 C39 28.2 38 29 36 29 L12 29 C10 29 9 28.2 9 27 Z" fill="#f43f5e"/><circle cx="17" cy="20" r="2.4" fill="#fecdd3"/><circle cx="27.5" cy="18" r="3" fill="#fecdd3"/><circle cx="32" cy="24" r="2" fill="#fecdd3"/></svg>` },
+];
+
+// ボス（5体ごとに出現、HP・報酬とも大きい）
+const BOSS_ENEMIES = [
+  { name: 'ドラゴン', glow: '#16a34a', svg:
+    `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path d="M10 12 L14 19 M38 12 L34 19" stroke="#166534" stroke-width="3.5" stroke-linecap="round"/><path d="M24 6 L20 12 L28 12 Z" fill="#15803d"/><circle cx="24" cy="26" r="16" fill="#16a34a"/><path d="M8 25 q-4 2 -2 6 q3 -1 4 -3 Z M40 25 q4 2 2 6 q-3 -1 -4 -3 Z" fill="#15803d"/><ellipse cx="24" cy="33" rx="10" ry="7" fill="#15803d"/><circle cx="20.5" cy="34" r="1.3" fill="#052e16"/><circle cx="27.5" cy="34" r="1.3" fill="#052e16"/><path d="M17 38 l2-2 2 2 2-2 2 2 2-2 2 2" stroke="#fff" stroke-width="1.3" fill="none"/><ellipse cx="18" cy="23" rx="3" ry="3.4" fill="#fff"/><ellipse cx="30" cy="23" rx="3" ry="3.4" fill="#fff"/><circle cx="18" cy="23.5" r="1.4" fill="#b91c1c"/><circle cx="30" cy="23.5" r="1.4" fill="#b91c1c"/></svg>` },
+  { name: 'まおう', glow: '#7c3aed', svg:
+    `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path d="M9 16 C7 8 12 5 14 5 C13 10 17 13 18 16 Z" fill="#5b21b6"/><path d="M39 16 C41 8 36 5 34 5 C35 10 31 13 30 16 Z" fill="#5b21b6"/><circle cx="24" cy="27" r="16" fill="#7c3aed"/><path d="M14 21 L21 24 M34 21 L27 24" stroke="#2e1065" stroke-width="2.4" stroke-linecap="round"/><path d="M17 25 l4.5 1.6 -3.5 2.6 Z" fill="#fde047"/><path d="M31 25 l-4.5 1.6 3.5 2.6 Z" fill="#fde047"/><path d="M16 34 Q24 40 32 34 Q28 33 24 33 Q20 33 16 34 Z" fill="#2e1065"/><path d="M19.5 34 l1.4 3 1.4-3 M25.7 34 l1.4 3 1.4-3" fill="#fff"/></svg>` },
+  { name: 'ゴーレム', glow: '#a8a29e', svg:
+    `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect x="11" y="12" width="26" height="26" rx="5" fill="#78716c"/><rect x="14" y="8" width="20" height="6" rx="2" fill="#57534e"/><rect x="15.5" y="22" width="7.5" height="5" rx="1.5" fill="#1c1917"/><rect x="25" y="22" width="7.5" height="5" rx="1.5" fill="#1c1917"/><circle cx="19.5" cy="24.5" r="1.5" fill="#fbbf24"/><circle cx="28.5" cy="24.5" r="1.5" fill="#fbbf24"/><path d="M17 32 h14" stroke="#1c1917" stroke-width="2.4" stroke-linecap="round"/><path d="M13 18 l3 0 M32 30 l3 0 M24 14 l0 -3" stroke="#57534e" stroke-width="1.6"/></svg>` },
 ];
 
 const DAILY_MISSIONS = [
@@ -167,68 +180,60 @@ function haptic(pattern) {
   try { if (navigator.vibrate) navigator.vibrate(pattern); } catch {}
 }
 
-// ===== 週間ボス戦 =====
-function hashStr(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h; }
-function weekKey() {
-  const d = new Date();
-  const day = (d.getDay() + 6) % 7; // 月曜=0
-  d.setDate(d.getDate() - day);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+// ===== バトル進行（ドラクエ式：雑魚を倒すと次が出現、5体ごとにボス） =====
+function makeEnemy(stage) {
+  if (stage % 5 === 0) {
+    const idx = (Math.floor(stage / 5) - 1) % BOSS_ENEMIES.length;
+    const maxHp = 16 + stage * 2;
+    return { stage, isBoss: true, idx, hp: maxHp, maxHp };
+  }
+  const idx = (stage - 1) % MONSTERS.length;
+  const maxHp = 4 + Math.floor(stage / 2);
+  return { stage, isBoss: false, idx, hp: maxHp, maxHp };
 }
-function getBoss() {
-  const wk = weekKey();
-  if (!gameStats.boss || gameStats.boss.weekKey !== wk) {
-    const lvl = getLevelInfo(gameStats.xp).cur.level;
-    const idx = Math.abs(hashStr(wk)) % BOSSES.length;
-    const maxHp = 10 + lvl * 3;
-    gameStats.boss = { weekKey: wk, idx, maxHp, hp: maxHp, defeated: false };
+function getQuest() {
+  if (!gameStats.quest || typeof gameStats.quest.stage !== 'number') {
+    gameStats.quest = makeEnemy(1);
     saveGameStats(gameStats);
   }
-  return gameStats.boss;
+  return gameStats.quest;
 }
-function damageBoss(item) {
-  const boss = getBoss();
-  if (boss.defeated) return;
+function attackEnemy(item) {
+  const q = getQuest();
   const dmg = item.priority === 'high' ? 3 : item.priority === 'medium' ? 2 : 1;
-  boss.hp = Math.max(0, boss.hp - dmg);
-  if (boss.hp === 0) {
-    boss.defeated = true;
-    gameStats.bossDefeats = (gameStats.bossDefeats || 0) + 1;
-    const reward = 100 + getLevelInfo(gameStats.xp).cur.level * 20;
+  q.hp = Math.max(0, q.hp - dmg);
+  if (q.hp === 0) {
+    const e = q.isBoss ? BOSS_ENEMIES[q.idx] : MONSTERS[q.idx];
+    const reward = q.isBoss ? (80 + q.stage * 6) : (8 + q.stage);
     gameStats.xp += reward;
+    gameStats.enemiesDefeated = (gameStats.enemiesDefeated || 0) + 1;
+    if (q.isBoss) gameStats.bossDefeats = (gameStats.bossDefeats || 0) + 1;
+    gameStats.quest = makeEnemy(q.stage + 1);
     saveGameStats(gameStats);
-    playSound('boss');
-    haptic([60, 40, 60, 40, 140]);
-    showConfetti(true);
-    const b = BOSSES[boss.idx];
-    setTimeout(() => toast(`⚔️ 今週のボス「${b.name}」を撃破！ +${reward} XP`), 650);
+    playSound(q.isBoss ? 'boss' : 'complete');
+    haptic(q.isBoss ? [60, 40, 60, 40, 140] : [35, 25, 55]);
+    if (q.isBoss) showConfetti(true);
+    setTimeout(() => toast(`${q.isBoss ? '⚔️ ボス' : '🗡'} ${e.name} を たおした！ +${reward} XP`), 480);
   } else {
     saveGameStats(gameStats);
   }
-  renderBoss();
+  renderBattle();
 }
-function renderBoss() {
+function renderBattle() {
   const el = document.getElementById('bossCard');
   if (!el) return;
-  const boss = getBoss();
-  const b = BOSSES[boss.idx];
-  if (boss.defeated) {
-    el.innerHTML = `<div class="glass-card boss-card defeated">
-      <div class="boss-avatar" style="--boss-glow:${b.glow}">${b.svg}</div>
-      <div class="boss-info">
-        <div class="boss-name">${esc(b.name)}</div>
-        <div class="boss-status">✅ 今週は撃破済み！また来週</div>
-      </div>
-    </div>`;
-    return;
-  }
-  const pct = Math.round((boss.hp / boss.maxHp) * 100);
-  el.innerHTML = `<div class="glass-card boss-card">
-    <div class="boss-avatar" style="--boss-glow:${b.glow}">${b.svg}</div>
-    <div class="boss-info">
-      <div class="boss-name">今週のボス：${esc(b.name)}</div>
+  const q = getQuest();
+  const e = q.isBoss ? BOSS_ENEMIES[q.idx] : MONSTERS[q.idx];
+  const pct = Math.round((q.hp / q.maxHp) * 100);
+  const tag = q.isBoss
+    ? `<span class="battle-tag boss">★BOSS★</span>`
+    : `<span class="battle-tag">${q.stage}体目</span>`;
+  el.innerHTML = `<div class="glass-card battle-card${q.isBoss ? ' boss' : ''}">
+    <div class="battle-avatar" style="--enemy-glow:${e.glow}">${e.svg}</div>
+    <div class="battle-info">
+      <div class="battle-name">${tag}${esc(e.name)}</div>
       <div class="boss-hpbar"><div class="boss-hpfill" style="width:${pct}%"></div></div>
-      <div class="boss-hptext">HP ${boss.hp}/${boss.maxHp}　タスク完了で攻撃！</div>
+      <div class="boss-hptext">HP ${q.hp}/${q.maxHp}　タスク完了でこうげき！</div>
     </div>
   </div>`;
 }
@@ -384,6 +389,8 @@ function renderStats() {
       <div class="stat-item"><span class="stat-num">${gameStats.xp || 0}</span><span class="stat-label">累計XP</span></div>
       <div class="stat-item"><span class="stat-num">${gameStats.streak || 0}</span><span class="stat-label">現在ストリーク</span></div>
       <div class="stat-item"><span class="stat-num">${gameStats.maxStreak || 0}</span><span class="stat-label">最長ストリーク</span></div>
+      <div class="stat-item"><span class="stat-num">${gameStats.enemiesDefeated || 0}</span><span class="stat-label">倒した敵</span></div>
+      <div class="stat-item"><span class="stat-num">${gameStats.bossDefeats || 0}</span><span class="stat-label">ボス撃破</span></div>
     </div>
     <div class="stats-week">
       <div class="stats-week-label">曜日別完了数</div>
@@ -470,7 +477,7 @@ function onTaskComplete(item) {
   if (gacha) setTimeout(() => playSound('gacha'), 350);
   if (leveledUp) { playSound('levelup'); haptic([40, 30, 90]); }
 
-  damageBoss(item);
+  attackEnemy(item);
 
   renderGameStats();
   checkAchievements(prevBadges);
@@ -536,7 +543,7 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById(`view-${btn.dataset.view}`).classList.add('active');
-    if (btn.dataset.view === 'record') { renderTodayTasks(); renderDailyMission(); renderBoss(); }
+    if (btn.dataset.view === 'record') { renderTodayTasks(); renderDailyMission(); renderBattle(); }
     if (btn.dataset.view === 'history') renderHistory();
     if (btn.dataset.view === 'settings') { renderTrash(); renderStats(); renderBadges(); renderGameSettings(); }
   });
@@ -1776,7 +1783,7 @@ setStatus('タップして録音');
 renderTodayTasks();
 renderGameStats();
 renderDailyMission();
-renderBoss();
+renderBattle();
 
 // ===== 共通 =====
 function esc(str) {

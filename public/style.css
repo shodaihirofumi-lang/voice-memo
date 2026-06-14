@@ -1304,20 +1304,21 @@ header {
   color: var(--text-2);
 }
 
-/* ===== 週間ボス戦 ===== */
-.boss-card {
+/* ===== バトル（ドラクエ式：雑魚＆ボス） ===== */
+.battle-card {
   display: flex;
   align-items: center;
   gap: 0.8rem;
-  border: 1px solid rgba(239,68,68,0.28);
-  background: linear-gradient(135deg, rgba(239,68,68,0.1), rgba(249,115,22,0.05));
+  border: 1px solid var(--border-strong);
+  background: linear-gradient(135deg, rgba(255,255,255,0.045), rgba(255,255,255,0.01));
 }
-.boss-card.defeated {
-  border-color: rgba(74,222,128,0.28);
-  background: linear-gradient(135deg, rgba(74,222,128,0.08), rgba(74,222,128,0.03));
+.battle-card.boss {
+  border-color: rgba(251,191,36,0.5);
+  background: linear-gradient(135deg, rgba(239,68,68,0.13), rgba(251,191,36,0.06));
+  box-shadow: 0 0 24px -6px rgba(251,191,36,0.55);
 }
-.boss-avatar {
-  --boss-glow: #ef4444;
+.battle-avatar {
+  --enemy-glow: #3b82f6;
   width: 54px;
   height: 54px;
   flex-shrink: 0;
@@ -1326,25 +1327,39 @@ header {
   justify-content: center;
   border-radius: 50%;
   background: radial-gradient(circle at 50% 38%, rgba(255,255,255,0.08), rgba(255,255,255,0.01)), var(--surface-2);
-  box-shadow: 0 0 17px -3px var(--boss-glow), inset 0 0 0 1px rgba(255,255,255,0.09);
+  box-shadow: 0 0 17px -3px var(--enemy-glow), inset 0 0 0 1px rgba(255,255,255,0.09);
   animation: bossFloat 2.6s ease-in-out infinite;
 }
-.boss-avatar svg { width: 42px; height: 42px; display: block; }
+.battle-card.boss .battle-avatar { width: 60px; height: 60px; }
+.battle-avatar svg { width: 42px; height: 42px; display: block; }
+.battle-card.boss .battle-avatar svg { width: 48px; height: 48px; }
 @keyframes bossFloat {
   0%, 100% { transform: translateY(0); }
   50%      { transform: translateY(-3px); }
 }
-.boss-card.defeated .boss-avatar {
-  animation: none;
-  filter: grayscale(0.5) opacity(0.8);
-  box-shadow: 0 0 12px -2px rgba(74,222,128,0.4), inset 0 0 0 1px rgba(255,255,255,0.06);
-}
-.boss-info { flex: 1; min-width: 0; }
-.boss-name {
+.battle-info { flex: 1; min-width: 0; }
+.battle-name {
   font-size: 0.86rem;
   font-weight: 700;
   color: var(--text);
   margin-bottom: 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.battle-tag {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: var(--text-3);
+  background: var(--surface-2);
+  border-radius: 6px;
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+.battle-tag.boss {
+  color: #1a1206;
+  background: linear-gradient(90deg, #fbbf24, #f59e0b);
 }
 .boss-hpbar {
   height: 9px;
@@ -1357,17 +1372,13 @@ header {
   height: 100%;
   background: linear-gradient(90deg, #ef4444, #f97316);
   border-radius: 5px;
-  transition: width 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
+.battle-card.boss .boss-hpfill { background: linear-gradient(90deg, #f59e0b, #ef4444); }
 .boss-hptext {
   font-size: 0.7rem;
   color: var(--text-3);
   font-weight: 600;
-}
-.boss-status {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--green);
 }
 
 /* ===== トグル（ゲーム設定） ===== */
