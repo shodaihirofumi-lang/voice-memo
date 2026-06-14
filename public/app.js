@@ -76,12 +76,18 @@ const BADGES = [
 ];
 
 const BOSSES = [
-  { emoji: '👹', name: 'タスク鬼' },
-  { emoji: '🐉', name: '締切ドラゴン' },
-  { emoji: '👻', name: '先延ばし幽霊' },
-  { emoji: '🦖', name: 'ダラダラ恐竜' },
-  { emoji: '🧟', name: '放置ゾンビ' },
-  { emoji: '👾', name: 'やること星人' },
+  { name: 'タスク鬼', glow: '#ef4444', svg:
+    `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path d="M12 9 L16 17 M36 9 L32 17" stroke="#fcd34d" stroke-width="3.5" stroke-linecap="round"/><circle cx="24" cy="27" r="15" fill="#ef4444"/><path d="M15 22 L21 24 M33 22 L27 24" stroke="#7f1d1d" stroke-width="2" stroke-linecap="round"/><circle cx="19" cy="26" r="2.6" fill="#fff"/><circle cx="29" cy="26" r="2.6" fill="#fff"/><path d="M17 33 Q24 38 31 33" stroke="#7f1d1d" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M20.5 33 l1.5 3 1.5-3 Z M25.5 33 l1.5 3 1.5-3 Z" fill="#fff"/></svg>` },
+  { name: '締切ドラゴン', glow: '#22c55e', svg:
+    `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path d="M14 11 L17 18 M34 11 L31 18" stroke="#15803d" stroke-width="3" stroke-linecap="round"/><circle cx="24" cy="27" r="15" fill="#22c55e"/><ellipse cx="24" cy="33" rx="9" ry="6" fill="#16a34a"/><circle cx="20.5" cy="34" r="1.2" fill="#052e16"/><circle cx="27.5" cy="34" r="1.2" fill="#052e16"/><circle cx="19" cy="24" r="2.8" fill="#fff"/><circle cx="29" cy="24" r="2.8" fill="#fff"/><circle cx="19" cy="24.5" r="1.2" fill="#052e16"/><circle cx="29" cy="24.5" r="1.2" fill="#052e16"/></svg>` },
+  { name: '先延ばし幽霊', glow: '#c084fc', svg:
+    `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path d="M11 28 a13 13 0 0 1 26 0 V41 l-4-3 -4 3 -4-3 -4 3 -3-2 Z" fill="#e9d5ff"/><circle cx="19" cy="25" r="2.8" fill="#6b21a8"/><circle cx="29" cy="25" r="2.8" fill="#6b21a8"/><ellipse cx="24" cy="31" rx="2.4" ry="3" fill="#6b21a8"/></svg>` },
+  { name: 'ダラダラ恐竜', glow: '#14b8a6', svg:
+    `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path d="M11 17 l4 6 4-6 4 6 4-6 4 6 4-6" fill="#0f766e"/><circle cx="24" cy="29" r="13" fill="#14b8a6"/><circle cx="20" cy="27" r="2.6" fill="#fff"/><circle cx="20" cy="27.4" r="1.2" fill="#042f2e"/><circle cx="30" cy="27" r="2.6" fill="#fff"/><circle cx="30" cy="27.4" r="1.2" fill="#042f2e"/><path d="M18 34 h12 M21.5 34 v3 M25 34 v3 M28.5 34 v3" stroke="#0f766e" stroke-width="1.8" stroke-linecap="round"/></svg>` },
+  { name: '放置ゾンビ', glow: '#84cc16', svg:
+    `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><circle cx="24" cy="27" r="15" fill="#84cc16"/><path d="M16 23 l4 4 M20 23 l-4 4" stroke="#365314" stroke-width="2" stroke-linecap="round"/><circle cx="30" cy="25" r="2.6" fill="#fff"/><circle cx="30" cy="25.4" r="1.2" fill="#1a2e05"/><path d="M18 34 h12 M21 32 v4 M25 32 v4 M29 32 v4" stroke="#365314" stroke-width="1.8" stroke-linecap="round"/></svg>` },
+  { name: 'やること星人', glow: '#a855f7', svg:
+    `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path d="M18 12 L16 5 M30 12 L32 5" stroke="#7e22ce" stroke-width="2.5" stroke-linecap="round"/><circle cx="16" cy="4.5" r="2.2" fill="#d8b4fe"/><circle cx="32" cy="4.5" r="2.2" fill="#d8b4fe"/><ellipse cx="24" cy="28" rx="14" ry="16" fill="#a855f7"/><ellipse cx="18.5" cy="27" rx="3" ry="5" fill="#1a1a2e" transform="rotate(20 18.5 27)"/><ellipse cx="29.5" cy="27" rx="3" ry="5" fill="#1a1a2e" transform="rotate(-20 29.5 27)"/></svg>` },
 ];
 
 const DAILY_MISSIONS = [
@@ -208,7 +214,7 @@ function renderBoss() {
   const b = BOSSES[boss.idx];
   if (boss.defeated) {
     el.innerHTML = `<div class="glass-card boss-card defeated">
-      <span class="boss-emoji">${b.emoji}</span>
+      <div class="boss-avatar" style="--boss-glow:${b.glow}">${b.svg}</div>
       <div class="boss-info">
         <div class="boss-name">${esc(b.name)}</div>
         <div class="boss-status">✅ 今週は撃破済み！また来週</div>
@@ -218,7 +224,7 @@ function renderBoss() {
   }
   const pct = Math.round((boss.hp / boss.maxHp) * 100);
   el.innerHTML = `<div class="glass-card boss-card">
-    <span class="boss-emoji">${b.emoji}</span>
+    <div class="boss-avatar" style="--boss-glow:${b.glow}">${b.svg}</div>
     <div class="boss-info">
       <div class="boss-name">今週のボス：${esc(b.name)}</div>
       <div class="boss-hpbar"><div class="boss-hpfill" style="width:${pct}%"></div></div>
@@ -1051,8 +1057,8 @@ function renderTodayTasks() {
     const cats = (memo.organized && memo.organized.categories) || {};
     for (const key of ['tasks', 'reminders']) {
       (cats[key] || []).forEach((item, idx) => {
-        if (!item.done && item.due) {
-          tasks.push({ memoId: memo.id, cat: key, idx, text: item.text, due: item.due, priority: item.priority || null });
+        if (!item.done) {
+          tasks.push({ memoId: memo.id, cat: key, idx, text: item.text, due: item.due || null, priority: item.priority || null, ts: memo.ts || 0 });
         }
       });
     }
@@ -1062,12 +1068,21 @@ function renderTodayTasks() {
     todayTasksEl.innerHTML = '';
     return;
   }
-  tasks.sort((a, b) => a.due.localeCompare(b.due));
-  const rows = tasks.slice(0, 8).map((t) => {
-    const overdue = t.due < today;
-    const isToday = t.due === today;
-    const dueCls = overdue ? ' overdue' : isToday ? ' today-due' : '';
-    const dueLabel = `<span class="today-task-due${dueCls}">${formatDue(t.due)}${overdue ? ' 期限切れ' : isToday ? ' 今日' : ''}</span>`;
+  // 期限ありを期限順で先頭に、期限なしは新しい順で後ろに（全件表示）
+  tasks.sort((a, b) => {
+    if (a.due && !b.due) return -1;
+    if (!a.due && b.due) return 1;
+    if (a.due && b.due) return a.due.localeCompare(b.due);
+    return (b.ts || 0) - (a.ts || 0);
+  });
+  const rows = tasks.map((t) => {
+    let dueLabel = '';
+    if (t.due) {
+      const overdue = t.due < today;
+      const isToday = t.due === today;
+      const dueCls = overdue ? ' overdue' : isToday ? ' today-due' : '';
+      dueLabel = `<span class="today-task-due${dueCls}">${formatDue(t.due)}${overdue ? ' 期限切れ' : isToday ? ' 今日' : ''}</span>`;
+    }
     const pri = t.priority === 'high' ? '<span class="priority-badge high">急</span>'
       : t.priority === 'medium' ? '<span class="priority-badge medium">中</span>' : '';
     return `<div class="today-task-row">
@@ -1075,11 +1090,10 @@ function renderTodayTasks() {
       <span class="today-task-body">${pri}<span class="today-task-text">${esc(t.text)}</span>${dueLabel}</span>
     </div>`;
   }).join('');
-  const more = tasks.length > 8 ? `<div class="today-task-more">他 ${tasks.length - 8} 件</div>` : '';
   todayTasksEl.classList.remove('hidden');
   todayTasksEl.innerHTML = `<div class="glass-card today-tasks-card">
-    <h3 class="card-label">タスク</h3>
-    ${rows}${more}
+    <h3 class="card-label">タスク（${tasks.length}）</h3>
+    ${rows}
   </div>`;
 }
 
@@ -1471,16 +1485,74 @@ const textCard = document.getElementById('textCard');
 const textInput = document.getElementById('textInput');
 const textOrganizeBtn = document.getElementById('textOrganizeBtn');
 
+// ブラウザ内蔵の音声認識（キーボードの音声入力の代わりに、開いたらすぐ話せる）
+let recog = null, dictating = false, dictBase = '';
+function supportsDictation() { return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
+function updateDictateBtn() {
+  const btn = document.getElementById('dictateBtn');
+  if (!btn) return;
+  if (!supportsDictation()) { btn.style.display = 'none'; return; }
+  btn.classList.toggle('listening', dictating);
+  btn.textContent = dictating ? '⏹ 停止（聞いてます…）' : '🎤 音声入力';
+}
+function startDictation() {
+  if (!supportsDictation() || dictating) return false;
+  try {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recog = new SR();
+    recog.lang = 'ja-JP';
+    recog.continuous = true;
+    recog.interimResults = true;
+    dictBase = textInput.value ? textInput.value.replace(/\s*$/, '') + ' ' : '';
+    recog.onresult = (e) => {
+      let interim = '', finalAdd = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const tr = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finalAdd += tr; else interim += tr;
+      }
+      if (finalAdd) dictBase += finalAdd;
+      textInput.value = dictBase + interim;
+    };
+    recog.onerror = (e) => {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') toast('マイクの使用が許可されていません');
+    };
+    recog.onend = () => { dictating = false; updateDictateBtn(); };
+    recog.start();
+    dictating = true;
+    updateDictateBtn();
+    return true;
+  } catch { return false; }
+}
+function stopDictation() {
+  if (recog) { try { recog.stop(); } catch {} }
+  recog = null;
+  dictating = false;
+  updateDictateBtn();
+}
+
 document.getElementById('textModeBtn').addEventListener('click', () => {
+  const opening = textCard.classList.contains('hidden');
   textCard.classList.toggle('hidden');
-  if (!textCard.classList.contains('hidden')) textInput.focus();
+  if (opening) {
+    updateDictateBtn();
+    textInput.focus();
+    startDictation(); // 開いたら最初から音声入力ON
+  } else {
+    stopDictation();
+  }
+});
+
+document.getElementById('dictateBtn').addEventListener('click', () => {
+  if (dictating) stopDictation(); else startDictation();
 });
 
 document.getElementById('textCloseBtn').addEventListener('click', () => {
+  stopDictation();
   textCard.classList.add('hidden');
 });
 
 textOrganizeBtn.addEventListener('click', async () => {
+  stopDictation();
   const text = textInput.value.trim();
   if (!text) {
     toast('テキストを入力してください');

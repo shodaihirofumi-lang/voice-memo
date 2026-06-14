@@ -139,6 +139,31 @@ header {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* 録音／キーボードの2ボタン（同サイズ） */
+.record-controls {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2rem;
+}
+.rc-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+.rc-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-3);
+}
+.record-btn.alt {
+  background: var(--surface-2);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--border-strong);
+}
+.record-btn.alt:hover:not(:disabled) { background: #202026; }
+
 /* 波形 */
 #visualizer {
   width: min(100%, 340px);
@@ -1291,13 +1316,29 @@ header {
   border-color: rgba(74,222,128,0.28);
   background: linear-gradient(135deg, rgba(74,222,128,0.08), rgba(74,222,128,0.03));
 }
-.boss-emoji {
-  font-size: 2.2rem;
-  line-height: 1;
+.boss-avatar {
+  --boss-glow: #ef4444;
+  width: 54px;
+  height: 54px;
   flex-shrink: 0;
-  filter: drop-shadow(0 2px 8px rgba(239,68,68,0.4));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 38%, rgba(255,255,255,0.08), rgba(255,255,255,0.01)), var(--surface-2);
+  box-shadow: 0 0 17px -3px var(--boss-glow), inset 0 0 0 1px rgba(255,255,255,0.09);
+  animation: bossFloat 2.6s ease-in-out infinite;
 }
-.boss-card.defeated .boss-emoji { filter: grayscale(0.5) drop-shadow(0 2px 8px rgba(74,222,128,0.3)); }
+.boss-avatar svg { width: 42px; height: 42px; display: block; }
+@keyframes bossFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+.boss-card.defeated .boss-avatar {
+  animation: none;
+  filter: grayscale(0.5) opacity(0.8);
+  box-shadow: 0 0 12px -2px rgba(74,222,128,0.4), inset 0 0 0 1px rgba(255,255,255,0.06);
+}
 .boss-info { flex: 1; min-width: 0; }
 .boss-name {
   font-size: 0.86rem;
@@ -1355,6 +1396,28 @@ header {
   color: #09090b;
   background: var(--green);
   border-color: transparent;
+}
+
+/* ===== テキスト/音声入力カードのボタン ===== */
+.text-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+}
+.pill-btn.dictate {
+  border-color: rgba(96,165,250,0.45);
+  color: #93c5fd;
+}
+.pill-btn.dictate.listening {
+  background: rgba(239,68,68,0.92);
+  color: #fff;
+  border-color: transparent;
+  animation: dictPulse 1.3s ease-in-out infinite;
+}
+@keyframes dictPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.45); }
+  50%      { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
 }
 
 /* ===== スマホ ===== */

@@ -37,9 +37,10 @@
         <div id="result"></div>
 
         <div id="textCard" class="glass-card hidden">
-          <h3 class="card-label">テキストから整理</h3>
-          <textarea id="textInput" class="text-input text-area" rows="4" placeholder="メモを入力..."></textarea>
-          <div class="settings-actions">
+          <h3 class="card-label">話す・入力して整理</h3>
+          <textarea id="textInput" class="text-input text-area" rows="4" placeholder="話すか、入力してください..."></textarea>
+          <div class="text-actions">
+            <button id="dictateBtn" class="pill-btn dictate">🎤 音声入力</button>
             <button id="textOrganizeBtn" class="pill-btn primary">整理する</button>
             <button id="textCloseBtn" class="pill-btn">閉じる</button>
           </div>
@@ -49,10 +50,20 @@
           <canvas id="visualizer" width="680" height="88"></canvas>
           <div id="timer" class="timer"></div>
           <div id="status" class="status"></div>
-          <button id="recordBtn" class="record-btn" aria-label="録音">
-            <span class="mic-icon" id="micIcon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></span>
-          </button>
-          <button id="textModeBtn" class="text-mode-btn">キーボードで入力</button>
+          <div class="record-controls">
+            <div class="rc-item">
+              <button id="recordBtn" class="record-btn" aria-label="録音">
+                <span class="mic-icon" id="micIcon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></span>
+              </button>
+              <span class="rc-label">録音</span>
+            </div>
+            <div class="rc-item">
+              <button id="textModeBtn" class="record-btn alt" aria-label="キーボードで入力">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/></svg>
+              </button>
+              <span class="rc-label">キーボード</span>
+            </div>
+          </div>
         </div>
       </section>
 
