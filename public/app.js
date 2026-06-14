@@ -209,6 +209,10 @@ function attackEnemy(item) {
     gameStats.xp += reward;
     gameStats.enemiesDefeated = (gameStats.enemiesDefeated || 0) + 1;
     if (q.isBoss) gameStats.bossDefeats = (gameStats.bossDefeats || 0) + 1;
+    // モンスター図鑑：種類ごとの撃破数を記録
+    const dexKey = (q.isBoss ? 'b' : 'm') + q.idx;
+    gameStats.monsterDex = gameStats.monsterDex || {};
+    gameStats.monsterDex[dexKey] = (gameStats.monsterDex[dexKey] || 0) + 1;
     gameStats.quest = makeEnemy(q.stage + 1);
     saveGameStats(gameStats);
     playSound(q.isBoss ? 'boss' : 'complete');
@@ -266,7 +270,169 @@ function renderGameSettings() {
       <button class="toggle-btn${soundEnabled ? ' on' : ''}" data-toggle-game="sound">${soundEnabled ? 'ON' : 'OFF'}</button></div>
     <div class="toggle-row"><span>バイブ（振動）</span>
       <button class="toggle-btn${hapticEnabled ? ' on' : ''}" data-toggle-game="haptic">${hapticEnabled ? 'ON' : 'OFF'}</button></div>
+    <div class="toggle-row"><span>締め切り通知</span>
+      <button class="toggle-btn${notifyEnabled ? ' on' : ''}" data-toggle-game="notify">${notifyEnabled ? 'ON' : 'OFF'}</button></div>
   </div>`;
+}
+
+// ===== テーマ（着せ替え） =====
+const THEMES = [
+  { id: 'default', name: 'スタンダード', level: 1,  accent: '#fbbf24', accent2: '#f97316' },
+  { id: 'forest',  name: 'フォレスト',   level: 3,  accent: '#4ade80', accent2: '#16a34a' },
+  { id: 'ocean',   name: 'オーシャン',   level: 5,  accent: '#38bdf8', accent2: '#2563eb' },
+  { id: 'sunset',  name: 'サンセット',   level: 7,  accent: '#fb7185', accent2: '#f59e0b' },
+  { id: 'legend',  name: '伝説の勇者',   level: 10, accent: '#fcd34d', accent2: '#a855f7' },
+];
+let currentTheme = localStorage.getItem('voiceMemoTheme') || 'default';
+function applyTheme(id) {
+  const t = THEMES.find((x) => x.id === id) || THEMES[0];
+  document.documentElement.style.setProperty('--accent', t.accent);
+  document.documentElement.style.setProperty('--accent2', t.accent2);
+  currentTheme = t.id;
+}
+function renderThemes() {
+  const el = document.getElementById('themeSection');
+  if (!el) return;
+  const lvl = getLevelInfo(gameStats.xp).cur.level;
+  el.innerHTML = `<div class="glass-card settings-card">
+    <h3 class="card-label">着せ替え（テーマ）</h3>
+    <div class="theme-grid">
+      ${THEMES.map((t) => {
+        const unlocked = lvl >= t.level;
+        const active = currentTheme === t.id;
+        return `<button class="theme-item${active ? ' active' : ''}${unlocked ? '' : ' locked'}" data-theme-id="${t.id}"${unlocked ? '' : ' disabled'}>
+          <span class="theme-swatch" style="background:linear-gradient(135deg,${t.accent},${t.accent2})"></span>
+          <span class="theme-name">${unlocked ? esc(t.name) : 'Lv.' + t.level}</span>
+        </button>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+// ===== モンスター図鑑 =====
+function renderMonsterDex() {
+  const el = document.getElementById('monsterDexSection');
+  if (!el) return;
+  const dex = gameStats.monsterDex || {};
+  let seen = 0;
+  MONSTERS.forEach((_, i) => { if (dex['m' + i] > 0) seen++; });
+  BOSS_ENEMIES.forEach((_, i) => { if (dex['b' + i] > 0) seen++; });
+  const total = MONSTERS.length + BOSS_ENEMIES.length;
+  const cell = (e, key, isBoss) => {
+    const count = dex[key] || 0;
+    const got = count > 0;
+    return `<div class="dex-item${got ? '' : ' locked'}${isBoss ? ' boss' : ''}">
+      <div class="dex-icon">${got ? e.svg : '<span class="dex-q">？</span>'}</div>
+      <span class="dex-name">${got ? esc(e.name) : '？？？'}</span>
+      <span class="dex-count">${got ? '×' + count : (isBoss ? 'BOSS' : '未発見')}</span>
+    </div>`;
+  };
+  el.innerHTML = `<div class="glass-card settings-card">
+    <h3 class="card-label">モンスター図鑑（${seen}/${total}）</h3>
+    <div class="dex-grid">
+      ${MONSTERS.map((e, i) => cell(e, 'm' + i, false)).join('')}
+      ${BOSS_ENEMIES.map((e, i) => cell(e, 'b' + i, true)).join('')}
+    </div>
+  </div>`;
+}
+
+// ===== 活動カレンダー =====
+function renderActivityCalendar() {
+  const el = document.getElementById('calendarSection');
+  if (!el) return;
+  const log = gameStats.dailyLog || {};
+  const base = new Date();
+  const days = [];
+  for (let i = 34; i >= 0; i--) {
+    const d = new Date(base);
+    d.setDate(d.getDate() - i);
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    days.push({ iso, count: log[iso] || 0, isToday: i === 0 });
+  }
+  const lv = (c) => c === 0 ? 0 : c <= 1 ? 1 : c <= 3 ? 2 : c <= 6 ? 3 : 4;
+  const grid = days.map((d) => `<div class="cal-cell lv${lv(d.count)}${d.isToday ? ' today' : ''}" title="${d.iso}：${d.count}件"></div>`).join('');
+  const active = days.filter((d) => d.count > 0).length;
+  el.innerHTML = `<div class="glass-card settings-card">
+    <h3 class="card-label">活動カレンダー（直近5週・${active}日達成）</h3>
+    <div class="cal-grid">${grid}</div>
+    <div class="cal-legend"><span>少</span><span class="cal-cell lv0"></span><span class="cal-cell lv1"></span><span class="cal-cell lv2"></span><span class="cal-cell lv3"></span><span class="cal-cell lv4"></span><span>多</span></div>
+  </div>`;
+}
+
+// ===== 今日のクエスト（緊急度上位3つ） =====
+function renderDailyQuest() {
+  const el = document.getElementById('questSection');
+  if (!el) return;
+  const today = todayISO();
+  const cand = [];
+  for (const memo of memos) {
+    const cats = (memo.organized && memo.organized.categories) || {};
+    for (const key of ['tasks', 'reminders']) {
+      (cats[key] || []).forEach((item, idx) => {
+        if (item.done) return;
+        let score = 0;
+        if (item.due && item.due < today) score += 100;
+        else if (item.due === today) score += 80;
+        else if (item.due) score += 40;
+        if (item.priority === 'high') score += 30;
+        else if (item.priority === 'medium') score += 15;
+        if (taskTypeBonus(item.text).type !== 'normal') score += 5;
+        cand.push({ memoId: memo.id, cat: key, idx, text: item.text, due: item.due || null, priority: item.priority || null, score });
+      });
+    }
+  }
+  if (cand.length === 0) { el.innerHTML = ''; return; }
+  cand.sort((a, b) => b.score - a.score);
+  const rows = cand.slice(0, 3).map((t) => {
+    const pri = t.priority === 'high' ? '<span class="priority-badge high">急</span>' : t.priority === 'medium' ? '<span class="priority-badge medium">中</span>' : '';
+    const due = t.due ? `<span class="today-task-due${t.due < today ? ' overdue' : t.due === today ? ' today-due' : ''}">${formatDue(t.due)}${t.due < today ? ' 期限切れ' : t.due === today ? ' 今日' : ''}</span>` : '';
+    const rep = recurringType(t.text) ? '🔁 ' : '';
+    return `<div class="today-task-row">
+      <input type="checkbox" data-id="${t.memoId}" data-cat="${t.cat}" data-idx="${t.idx}">
+      <span class="today-task-body">${pri}<span class="today-task-text">${rep}${esc(t.text)}</span>${due}</span>
+    </div>`;
+  }).join('');
+  el.innerHTML = `<div class="glass-card quest-card">
+    <h3 class="card-label">⭐ 今日のクエスト</h3>
+    <p class="quest-sub">まずはこの${Math.min(3, cand.length)}つを倒そう</p>
+    ${rows}
+  </div>`;
+}
+
+// ===== 繰り返しタスク =====
+function recurringType(text) {
+  const t = String(text || '');
+  if (/毎日|毎朝|毎晩|毎ばん/.test(t)) return 'daily';
+  if (/毎週/.test(t)) return 'weekly';
+  if (/毎月/.test(t)) return 'monthly';
+  return null;
+}
+function nextDueISO(rep) {
+  const d = new Date();
+  if (rep === 'weekly') d.setDate(d.getDate() + 7);
+  else if (rep === 'monthly') d.setMonth(d.getMonth() + 1);
+  else d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// ===== 締め切り通知 =====
+let notifyEnabled = localStorage.getItem('voiceMemoNotify') === '1';
+function checkDueNotifications() {
+  if (!notifyEnabled || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const today = todayISO();
+  if (gameStats.lastNotifyDate === today) return;
+  let due = 0;
+  for (const memo of memos) {
+    const cats = (memo.organized && memo.organized.categories) || {};
+    for (const key of ['tasks', 'reminders']) {
+      (cats[key] || []).forEach((item) => { if (!item.done && item.due && item.due <= today) due++; });
+    }
+  }
+  if (due > 0) {
+    gameStats.lastNotifyDate = today;
+    saveGameStats(gameStats);
+    try { new Notification('声でメモ', { body: `期限が来ているタスクが ${due}件 あります`, icon: 'icons/icon-192.png' }); } catch {}
+  }
 }
 
 function renderGameStats() {
@@ -495,6 +661,9 @@ function onTaskComplete(item) {
     gameStats.lastDate = today;
   }
   if ((gameStats.streak || 0) > (gameStats.maxStreak || 0)) gameStats.maxStreak = gameStats.streak;
+  // 連続記録カレンダー：日別の完了数
+  gameStats.dailyLog = gameStats.dailyLog || {};
+  gameStats.dailyLog[today] = (gameStats.dailyLog[today] || 0) + 1;
 
   saveGameStats(gameStats);
 
@@ -578,9 +747,9 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById(`view-${btn.dataset.view}`).classList.add('active');
-    if (btn.dataset.view === 'record') { renderTodayTasks(); renderDailyMission(); renderBattle(); }
+    if (btn.dataset.view === 'record') { renderTodayTasks(); renderDailyMission(); renderDailyQuest(); renderBattle(); }
     if (btn.dataset.view === 'history') renderHistory();
-    if (btn.dataset.view === 'settings') { renderTrash(); renderStats(); renderBadges(); renderGameSettings(); }
+    if (btn.dataset.view === 'settings') { renderTrash(); renderStats(); renderMonsterDex(); renderActivityCalendar(); renderThemes(); renderBadges(); renderGameSettings(); }
   });
 });
 
@@ -1136,9 +1305,10 @@ function renderTodayTasks() {
     }
     const pri = t.priority === 'high' ? '<span class="priority-badge high">急</span>'
       : t.priority === 'medium' ? '<span class="priority-badge medium">中</span>' : '';
+    const rep = recurringType(t.text) ? '🔁 ' : '';
     return `<div class="today-task-row">
       <input type="checkbox" data-id="${t.memoId}" data-cat="${t.cat}" data-idx="${t.idx}">
-      <span class="today-task-body">${pri}<span class="today-task-text">${esc(t.text)}</span>${dueLabel}</span>
+      <span class="today-task-body">${pri}<span class="today-task-text">${rep}${esc(t.text)}</span>${dueLabel}</span>
     </div>`;
   };
   const card = (label, list) => list.length
@@ -1273,15 +1443,31 @@ document.addEventListener('change', (e) => {
   if (!item) return;
   item.done = cb.checked;
   saveMemos(memos);
-  if (cb.checked) onTaskComplete(item);
+  if (cb.checked) {
+    onTaskComplete(item);
+    // 繰り返しタスク：完了したら次回分として自動で復活
+    const rep = recurringType(item.text);
+    if (rep) {
+      setTimeout(() => {
+        item.done = false;
+        item.due = nextDueISO(rep);
+        saveMemos(memos);
+        renderTodayTasks();
+        renderDailyQuest();
+        renderHistory();
+      }, 950);
+    }
+  }
   const row = cb.closest('.item-row');
   if (row) {
     row.classList.toggle('done', cb.checked);
   } else if (cb.closest('#pendingResult')) {
     renderPendingTasks();
     renderTodayTasks();
-  } else if (cb.closest('#todayTasks')) {
+    renderDailyQuest();
+  } else if (cb.closest('#todayTasks') || cb.closest('#questSection')) {
     renderTodayTasks();
+    renderDailyQuest();
   }
 });
 
@@ -1318,16 +1504,50 @@ document.addEventListener('click', (e) => {
 
   const gameToggle = e.target.closest('[data-toggle-game]');
   if (gameToggle) {
-    if (gameToggle.dataset.toggleGame === 'sound') {
+    const kind = gameToggle.dataset.toggleGame;
+    if (kind === 'sound') {
       soundEnabled = !soundEnabled;
       localStorage.setItem('voiceMemoSound', soundEnabled ? '1' : '0');
       if (soundEnabled) playSound('complete');
-    } else {
+      renderGameSettings();
+    } else if (kind === 'haptic') {
       hapticEnabled = !hapticEnabled;
       localStorage.setItem('voiceMemoHaptic', hapticEnabled ? '1' : '0');
       if (hapticEnabled) haptic(35);
+      renderGameSettings();
+    } else if (kind === 'notify') {
+      if (notifyEnabled) {
+        notifyEnabled = false;
+        localStorage.setItem('voiceMemoNotify', '0');
+        renderGameSettings();
+      } else if (!('Notification' in window)) {
+        toast('この端末は通知に対応していません');
+      } else if (Notification.permission === 'granted') {
+        notifyEnabled = true;
+        localStorage.setItem('voiceMemoNotify', '1');
+        renderGameSettings();
+        checkDueNotifications();
+      } else if (Notification.permission === 'denied') {
+        toast('ブラウザの設定で通知がブロックされています');
+      } else {
+        Notification.requestPermission().then((p) => {
+          notifyEnabled = p === 'granted';
+          localStorage.setItem('voiceMemoNotify', notifyEnabled ? '1' : '0');
+          toast(notifyEnabled ? '締め切り通知をオンにしました' : '通知が許可されませんでした');
+          renderGameSettings();
+          if (notifyEnabled) checkDueNotifications();
+        });
+      }
     }
-    renderGameSettings();
+    return;
+  }
+
+  const themeBtn = e.target.closest('[data-theme-id]');
+  if (themeBtn && !themeBtn.disabled) {
+    applyTheme(themeBtn.dataset.themeId);
+    localStorage.setItem('voiceMemoTheme', currentTheme);
+    renderThemes();
+    renderGameStats();
     return;
   }
 
@@ -1833,10 +2053,13 @@ document.getElementById('clearTokenBtn').addEventListener('click', () => {
 
 refreshTokenStatus();
 setStatus('タップして録音');
+applyTheme(currentTheme);
 renderTodayTasks();
 renderGameStats();
 renderDailyMission();
+renderDailyQuest();
 renderBattle();
+checkDueNotifications();
 
 // ===== 共通 =====
 function esc(str) {

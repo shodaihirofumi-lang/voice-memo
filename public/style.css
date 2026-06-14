@@ -16,6 +16,8 @@
   --red: #ef4444;
   --red-soft: #f87171;
   --green: #4ade80;
+  --accent: #fbbf24;
+  --accent2: #f97316;
 }
 
 html {
@@ -778,9 +780,9 @@ header {
 .gs-level {
   font-size: 0.68rem;
   font-weight: 700;
-  color: #fbbf24;
-  background: rgba(251,191,36,0.12);
-  border: 1px solid rgba(251,191,36,0.22);
+  color: var(--accent);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border-strong);
   border-radius: 6px;
   padding: 1px 6px;
 }
@@ -798,7 +800,7 @@ header {
 }
 .gs-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #fbbf24, #f97316);
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
   border-radius: 2px;
   transition: width 0.6s ease;
 }
@@ -1482,6 +1484,120 @@ header {
   0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.45); }
   50%      { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
 }
+
+/* ===== 今日のクエスト ===== */
+.quest-card {
+  border: 1px solid rgba(251,191,36,0.32);
+  background: linear-gradient(135deg, rgba(251,191,36,0.09), rgba(255,255,255,0.01));
+}
+.quest-sub {
+  font-size: 0.74rem;
+  color: var(--text-3);
+  margin: -0.2rem 0 0.5rem;
+}
+
+/* ===== 着せ替えテーマ ===== */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 0.55rem;
+}
+.theme-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.6rem 0.3rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s ease;
+}
+.theme-item.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.theme-item.locked { opacity: 0.5; cursor: default; }
+.theme-swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
+}
+.theme-name {
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+/* ===== モンスター図鑑 ===== */
+.dex-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(74px, 1fr));
+  gap: 0.55rem;
+}
+.dex-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.5rem 0.25rem;
+  text-align: center;
+}
+.dex-item.boss { border-color: rgba(251,191,36,0.35); }
+.dex-item.locked { opacity: 0.6; }
+.dex-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dex-icon svg { width: 38px; height: 38px; }
+.dex-q {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--text-3);
+}
+.dex-name {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.dex-count {
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.dex-item.locked .dex-count { color: var(--text-3); }
+
+/* ===== 活動カレンダー ===== */
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 0.6rem;
+}
+.cal-cell {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: var(--surface-2);
+}
+.cal-cell.lv1 { background: rgba(74,222,128,0.3); }
+.cal-cell.lv2 { background: rgba(74,222,128,0.55); }
+.cal-cell.lv3 { background: rgba(74,222,128,0.8); }
+.cal-cell.lv4 { background: #4ade80; }
+.cal-cell.today { box-shadow: 0 0 0 2px var(--accent); }
+.cal-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.66rem;
+  color: var(--text-3);
+}
+.cal-legend .cal-cell { width: 12px; height: 12px; aspect-ratio: auto; }
 
 /* ===== スマホ ===== */
 @media (max-width: 480px) {
