@@ -399,12 +399,14 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
   });
 });
 
-// ===== 録音（MediaRecorder → Gemini文字起こし）=====
-let mediaRecorder = null;
-let audioChunks = [];
+// ===== 録音（Web AudioでPCMを拾いWAVで送信 → Groq/Gemini文字起こし）=====
+// 一部端末(Android等)のWebM/OpusはWhisper側でうまくデコードできず誤認識(幻聴)が出るため、
+// PCMを直接拾って確実に読めるWAVに変換して送る
 let isRecording = false;
 let timerInterval = null;
 let seconds = 0;
+let recStream = null, recCtx = null, recSource = null, recProcessor = null, recAnalyser = null;
+let pcmChunks = [], pcmLen = 0, recRaf = null;
 
 recordBtn.addEventListener('click', () => {
   if (isRecording) {
@@ -417,61 +419,39 @@ recordBtn.addEventListener('click', () => {
 async function startRecording() {
   let stream;
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
   } catch {
     setStatus('マイクへのアクセスを許可してください', 'error');
     return;
   }
 
-  audioChunks = [];
-  const mimeType = ['audio/webm', 'audio/mp4', 'audio/ogg'].find(
-    (t) => MediaRecorder.isTypeSupported(t)
-  ) || '';
-  mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
-
-  mediaRecorder.ondataavailable = (e) => {
-    if (e.data && e.data.size > 0) audioChunks.push(e.data);
-  };
-
-  mediaRecorder.onstop = async () => {
+  try {
+    recStream = stream;
+    pcmChunks = [];
+    pcmLen = 0;
+    recCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (recCtx.state === 'suspended') { try { await recCtx.resume(); } catch {} }
+    recSource = recCtx.createMediaStreamSource(stream);
+    recAnalyser = recCtx.createAnalyser();
+    recAnalyser.fftSize = 128;
+    recProcessor = recCtx.createScriptProcessor(4096, 1, 1);
+    recProcessor.onaudioprocess = (e) => {
+      const ch = e.inputBuffer.getChannelData(0);
+      pcmChunks.push(new Float32Array(ch));
+      pcmLen += ch.length;
+      e.outputBuffer.getChannelData(0).fill(0); // 出力は無音（ハウリング防止）
+    };
+    recSource.connect(recAnalyser);
+    recSource.connect(recProcessor);
+    recProcessor.connect(recCtx.destination);
+  } catch {
     stream.getTracks().forEach((t) => t.stop());
+    setStatus('録音を開始できませんでした', 'error');
+    return;
+  }
 
-    if (audioChunks.length === 0) {
-      appendTargetId = null;
-      resetButton();
-      liveEl.classList.add('hidden');
-      setStatus('音声が録音できませんでした。もう一度お試しください', 'error');
-      return;
-    }
-
-    const type = mediaRecorder.mimeType || mimeType || 'audio/webm';
-    const blob = new Blob(audioChunks, { type });
-
-    recordBtn.disabled = true;
-    recordBtn.classList.add('processing');
-    micIcon.innerHTML = MIC_SVG;
-    liveEl.classList.add('hidden');
-    setStatus('文字起こし中...', 'processing');
-
-    const text = await transcribeAudio(blob, type);
-    if (!text) {
-      resetButton();
-      return;
-    }
-
-    liveFinalEl.textContent = text;
-    liveInterimEl.textContent = '';
-    liveEl.classList.remove('hidden');
-    setStatus('AIが整理中です...', 'processing');
-
-    if (appendTargetId) {
-      appendToMemo(appendTargetId, text);
-    } else {
-      organize(text);
-    }
-  };
-
-  mediaRecorder.start(500);
   isRecording = true;
   recordBtn.classList.add('recording');
   micIcon.innerHTML = STOP_SVG;
@@ -481,16 +461,142 @@ async function startRecording() {
   liveEl.classList.remove('hidden');
   resultEl.innerHTML = '';
   startTimer();
-  startVisualizer(stream);
+  drawViz();
 }
 
 function stopRecording() {
-  if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
+  if (!isRecording) return;
   isRecording = false;
   stopTimer();
-  stopVisualizer();
   recordBtn.classList.remove('recording');
-  mediaRecorder.stop();
+  if (recRaf) cancelAnimationFrame(recRaf);
+  recRaf = null;
+  vizCanvas.classList.remove('on');
+  const vctx = vizCanvas.getContext('2d');
+  vctx.clearRect(0, 0, vizCanvas.width, vizCanvas.height);
+
+  try { if (recProcessor) { recProcessor.disconnect(); recProcessor.onaudioprocess = null; } } catch {}
+  try { if (recSource) recSource.disconnect(); } catch {}
+  try { if (recAnalyser) recAnalyser.disconnect(); } catch {}
+
+  const sampleRate = recCtx ? recCtx.sampleRate : 48000;
+  const samples = mergePcm(pcmChunks, pcmLen);
+  pcmChunks = [];
+  pcmLen = 0;
+
+  if (recStream) recStream.getTracks().forEach((t) => t.stop());
+  if (recCtx) { recCtx.close().catch(() => {}); recCtx = null; }
+
+  processRecording(samples, sampleRate);
+}
+
+// 波形（録音中のAnalyserから描画）
+function drawViz() {
+  try {
+    const ctx = vizCanvas.getContext('2d');
+    const freq = new Uint8Array(recAnalyser.frequencyBinCount);
+    vizCanvas.classList.add('on');
+    const BARS = 44, W = vizCanvas.width, H = vizCanvas.height, gap = 6;
+    const barW = (W - gap * (BARS - 1)) / BARS;
+    const draw = () => {
+      recAnalyser.getByteFrequencyData(freq);
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+      for (let i = 0; i < BARS; i++) {
+        const v = freq[Math.floor((i * freq.length) / BARS)] / 255;
+        const h = Math.max(4, v * H * 0.95);
+        const x = i * (barW + gap), y = (H - h) / 2;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x, y, barW, h, barW / 2);
+        else ctx.rect(x, y, barW, h);
+        ctx.fill();
+      }
+      recRaf = requestAnimationFrame(draw);
+    };
+    draw();
+  } catch {}
+}
+
+// PCMチャンクを1つのFloat32Arrayに結合
+function mergePcm(chunks, total) {
+  const out = new Float32Array(total);
+  let off = 0;
+  for (const c of chunks) { out.set(c, off); off += c.length; }
+  return out;
+}
+
+// 16kHzへダウンサンプル（Whisper用。アップロードも軽くなる）
+function downsampleTo16k(samples, inRate) {
+  const outRate = 16000;
+  if (inRate <= outRate) return { data: samples, rate: inRate };
+  const ratio = inRate / outRate;
+  const outLen = Math.floor(samples.length / ratio);
+  const out = new Float32Array(outLen);
+  for (let i = 0; i < outLen; i++) {
+    const idx = i * ratio;
+    const i0 = Math.floor(idx);
+    const i1 = Math.min(i0 + 1, samples.length - 1);
+    const frac = idx - i0;
+    out[i] = samples[i0] * (1 - frac) + samples[i1] * frac;
+  }
+  return { data: out, rate: outRate };
+}
+
+// Float32 PCM → 16bit PCM WAV(Blob)
+function encodeWAV(samples, sampleRate) {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  const writeStr = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + samples.length * 2, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);   // PCM
+  view.setUint16(22, 1, true);   // mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeStr(36, 'data');
+  view.setUint32(40, samples.length * 2, true);
+  let off = 44;
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    off += 2;
+  }
+  return new Blob([buffer], { type: 'audio/wav' });
+}
+
+// 録音停止後の処理：WAV化→文字起こし→整理
+async function processRecording(samples, inRate) {
+  if (!samples || samples.length < inRate * 0.4) {
+    appendTargetId = null;
+    resetButton();
+    liveEl.classList.add('hidden');
+    setStatus('音声が短すぎました。もう一度お試しください', 'error');
+    return;
+  }
+  const { data, rate } = downsampleTo16k(samples, inRate);
+  const blob = encodeWAV(data, rate);
+
+  recordBtn.disabled = true;
+  recordBtn.classList.add('processing');
+  micIcon.innerHTML = MIC_SVG;
+  liveEl.classList.add('hidden');
+  setStatus('文字起こし中...', 'processing');
+
+  const text = await transcribeAudio(blob, 'audio/wav');
+  if (!text) { resetButton(); return; }
+
+  liveFinalEl.textContent = text;
+  liveInterimEl.textContent = '';
+  liveEl.classList.remove('hidden');
+  setStatus('AIが整理中です...', 'processing');
+
+  if (appendTargetId) appendToMemo(appendTargetId, text);
+  else organize(text);
 }
 
 async function transcribeAudio(blob, mimeType) {
@@ -598,67 +704,6 @@ function resetButton() {
   recordBtn.disabled = false;
   recordBtn.classList.remove('processing');
   micIcon.innerHTML = MIC_SVG;
-}
-
-// ===== 波形ビジュアライザー =====
-let vizStream = null;
-let audioCtx = null;
-let analyser = null;
-let vizRaf = null;
-
-async function startVisualizer(existingStream) {
-  try {
-    vizStream = existingStream || await navigator.mediaDevices.getUserMedia({ audio: true });
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 128;
-    audioCtx.createMediaStreamSource(vizStream).connect(analyser);
-
-    const ctx = vizCanvas.getContext('2d');
-    const freq = new Uint8Array(analyser.frequencyBinCount);
-    vizCanvas.classList.add('on');
-
-    const BARS = 44;
-    const W = vizCanvas.width, H = vizCanvas.height;
-    const gap = 6;
-    const barW = (W - gap * (BARS - 1)) / BARS;
-
-    const draw = () => {
-      analyser.getByteFrequencyData(freq);
-      ctx.clearRect(0, 0, W, H);
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
-      for (let i = 0; i < BARS; i++) {
-        const v = freq[Math.floor((i * freq.length) / BARS)] / 255;
-        const h = Math.max(4, v * H * 0.95);
-        const x = i * (barW + gap);
-        const y = (H - h) / 2;
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(x, y, barW, h, barW / 2);
-        } else {
-          ctx.rect(x, y, barW, h);
-        }
-        ctx.fill();
-      }
-      vizRaf = requestAnimationFrame(draw);
-    };
-    draw();
-  } catch {
-    // 飾りなので失敗しても録音は続行
-  }
-}
-
-function stopVisualizer() {
-  if (vizRaf) cancelAnimationFrame(vizRaf);
-  vizRaf = null;
-  vizStream = null;
-  if (audioCtx) {
-    audioCtx.close().catch(() => {});
-    audioCtx = null;
-  }
-  vizCanvas.classList.remove('on');
-  const ctx = vizCanvas.getContext('2d');
-  ctx.clearRect(0, 0, vizCanvas.width, vizCanvas.height);
 }
 
 // ===== メモ描画 =====

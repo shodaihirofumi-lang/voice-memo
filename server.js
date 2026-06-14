@@ -31,6 +31,20 @@ function todayJST() {
   };
 }
 
+// Whisperが無音・不明瞭な音声に対して出力しがちな定型の幻聴フレーズ
+const STT_HALLUCINATIONS = [
+  'ご視聴ありがとうございました', 'ご視聴ありがとうございます', 'ご清聴ありがとうございました',
+  'ありがとうございました', 'ありがとうございます', 'おやすみなさい', 'バイバイ',
+  'チャンネル登録お願いします', 'チャンネル登録よろしくお願いします',
+  '最後までご視聴いただきありがとうございました', '次回もお楽しみに',
+].map((s) => s.replace(/[\s。、!！?？.…]/g, ''));
+
+function isLikelyHallucination(text) {
+  if (!text) return true;
+  const t = text.replace(/[\s。、!！?？.…]/g, '');
+  return STT_HALLUCINATIONS.includes(t);
+}
+
 // ===== AI呼び出し（GEMINI_API_KEYがあればGemini、なければClaude） =====
 
 async function callClaude(prompt, maxTokens) {
@@ -154,17 +168,20 @@ app.post('/api/transcribe', async (req, res) => {
   if (!audio) return res.status(400).json({ error: '音声データがありません' });
 
   const audioBuffer = Buffer.from(audio, 'base64');
-  const ext = (mimeType || 'audio/webm').includes('mp4') ? 'mp4'
-    : (mimeType || '').includes('ogg') ? 'ogg' : 'webm';
+  const mt = mimeType || 'audio/webm';
+  const ext = mt.includes('wav') ? 'wav'
+    : mt.includes('mp4') ? 'mp4'
+    : mt.includes('ogg') ? 'ogg' : 'webm';
 
   // Groq Whisper（GROQ_API_KEYがあれば優先）
   if (GROQ_API_KEY) {
     try {
       const form = new FormData();
-      form.append('file', new Blob([audioBuffer], { type: mimeType || 'audio/webm' }), `rec.${ext}`);
+      form.append('file', new Blob([audioBuffer], { type: mt }), `rec.${ext}`);
       form.append('model', 'whisper-large-v3');
       form.append('language', 'ja');
       form.append('response_format', 'json');
+      form.append('temperature', '0');
 
       const r = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
         method: 'POST',
@@ -178,7 +195,9 @@ app.post('/api/transcribe', async (req, res) => {
       }
 
       const data = await r.json();
-      return res.json({ text: (data.text || '').trim(), stt: 'groq' });
+      const gtext = (data.text || '').trim();
+      // 無音時の定型幻聴は空扱いにして「聞き取れません」を出させる
+      return res.json({ text: isLikelyHallucination(gtext) ? '' : gtext, stt: 'groq' });
     } catch (err) {
       console.error('[GROQ STT ERROR]', err.message);
       if (!GEMINI_API_KEY) return res.status(500).json({ error: err.message });
