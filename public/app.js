@@ -584,6 +584,13 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
   });
 });
 
+// アプリ復帰（バックグラウンド→前面）時は必ずホーム（録音画面）に戻す
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || isRecording) return;
+  const recNav = document.querySelector('.nav-btn[data-view="record"]');
+  if (recNav && !recNav.classList.contains('active')) recNav.click();
+});
+
 // ===== 録音（Web AudioでPCMを拾いWAVで送信 → Groq/Gemini文字起こし）=====
 // 一部端末(Android等)のWebM/OpusはWhisper側でうまくデコードできず誤認識(幻聴)が出るため、
 // PCMを直接拾って確実に読めるWAVに変換して送る
@@ -1100,7 +1107,7 @@ function renderTodayTasks() {
     for (const key of ['tasks', 'reminders']) {
       (cats[key] || []).forEach((item, idx) => {
         if (!item.done) {
-          tasks.push({ memoId: memo.id, cat: key, idx, text: item.text, due: item.due || null, priority: item.priority || null, ts: memo.ts || 0 });
+          tasks.push({ memoId: memo.id, cat: key, idx, text: item.text, due: item.due || null, priority: item.priority || null, ts: memo.ts || 0, isWork: taskTypeBonus(item.text).type === 'work' });
         }
       });
     }
@@ -1111,13 +1118,13 @@ function renderTodayTasks() {
     return;
   }
   // 期限ありを期限順で先頭に、期限なしは新しい順で後ろに（全件表示）
-  tasks.sort((a, b) => {
+  const sortFn = (a, b) => {
     if (a.due && !b.due) return -1;
     if (!a.due && b.due) return 1;
     if (a.due && b.due) return a.due.localeCompare(b.due);
     return (b.ts || 0) - (a.ts || 0);
-  });
-  const rows = tasks.map((t) => {
+  };
+  const rowHtml = (t) => {
     let dueLabel = '';
     if (t.due) {
       const overdue = t.due < today;
@@ -1131,12 +1138,15 @@ function renderTodayTasks() {
       <input type="checkbox" data-id="${t.memoId}" data-cat="${t.cat}" data-idx="${t.idx}">
       <span class="today-task-body">${pri}<span class="today-task-text">${esc(t.text)}</span>${dueLabel}</span>
     </div>`;
-  }).join('');
+  };
+  // 仕事系とその他で分ける
+  const work = tasks.filter((t) => t.isWork).sort(sortFn);
+  const other = tasks.filter((t) => !t.isWork).sort(sortFn);
+  const card = (label, list) => list.length
+    ? `<div class="glass-card today-tasks-card"><h3 class="card-label">${label}（${list.length}）</h3>${list.map(rowHtml).join('')}</div>`
+    : '';
   todayTasksEl.classList.remove('hidden');
-  todayTasksEl.innerHTML = `<div class="glass-card today-tasks-card">
-    <h3 class="card-label">タスク（${tasks.length}）</h3>
-    ${rows}
-  </div>`;
+  todayTasksEl.innerHTML = card('💼 仕事', work) + card('🗒 タスク', other);
 }
 
 function getDateGroup(ts) {
