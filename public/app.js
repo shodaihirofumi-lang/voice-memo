@@ -41,6 +41,122 @@ const CATEGORY_CONFIG = {
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
+const GAME_KEY = 'voiceMemoGame.v1';
+const LEVELS = [
+  { level: 1,  xp: 0,      title: '見習いメモ屋' },
+  { level: 2,  xp: 100,    title: 'タスク見習い' },
+  { level: 3,  xp: 300,    title: 'メモの達人' },
+  { level: 4,  xp: 600,    title: 'タスク職人' },
+  { level: 5,  xp: 1100,   title: 'メモスター' },
+  { level: 6,  xp: 2000,   title: 'タスク忍者' },
+  { level: 7,  xp: 3500,   title: 'メモの鬼' },
+  { level: 8,  xp: 6000,   title: 'タスクマスター' },
+  { level: 9,  xp: 10000,  title: '伝説のメモリスト' },
+  { level: 10, xp: 20000,  title: '神' },
+];
+
+// ===== ゲーム =====
+function loadGameStats() {
+  try {
+    return JSON.parse(localStorage.getItem(GAME_KEY)) || { xp: 0, streak: 0, lastDate: null, totalCompleted: 0 };
+  } catch { return { xp: 0, streak: 0, lastDate: null, totalCompleted: 0 }; }
+}
+function saveGameStats(s) { localStorage.setItem(GAME_KEY, JSON.stringify(s)); }
+
+function getLevelInfo(xp) {
+  let cur = LEVELS[0], nxt = LEVELS[1];
+  for (let i = LEVELS.length - 1; i >= 0; i--) {
+    if (xp >= LEVELS[i].xp) { cur = LEVELS[i]; nxt = LEVELS[i + 1] || null; break; }
+  }
+  return { cur, nxt };
+}
+
+function prevDayISO(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+let gameStats = loadGameStats();
+let comboCount = 0, comboTimer = null, comboPopupTimer = null;
+
+function renderGameStats() {
+  const el = document.getElementById('gameStats');
+  if (!el) return;
+  const { cur, nxt } = getLevelInfo(gameStats.xp);
+  const pct = nxt ? Math.min(100, Math.round(((gameStats.xp - cur.xp) / (nxt.xp - cur.xp)) * 100)) : 100;
+  const streak = gameStats.streak >= 2 ? `<span class="gs-streak">🔥${gameStats.streak}</span>` : '';
+  el.innerHTML = `<div class="gs-row"><span class="gs-title">${cur.title}</span><span class="gs-level">Lv.${cur.level}</span>${streak}</div><div class="gs-bar"><div class="gs-bar-fill" style="width:${pct}%"></div></div>`;
+}
+
+function showConfetti(isUrgent) {
+  const container = document.getElementById('confettiContainer');
+  if (!container) return;
+  const colors = isUrgent
+    ? ['#ef4444', '#f97316', '#fbbf24', '#fff', '#4ade80']
+    : ['#4ade80', '#60a5fa', '#c084fc', '#fbbf24'];
+  const count = isUrgent ? 40 : 20;
+  for (let i = 0; i < count; i++) {
+    setTimeout(() => {
+      const p = document.createElement('div');
+      p.className = 'confetti-p';
+      p.style.cssText = `left:${5 + Math.random() * 90}%;background:${colors[i % colors.length]};width:${5 + Math.random() * 5}px;height:${6 + Math.random() * 8}px;animation-duration:${0.8 + Math.random() * 0.7}s`;
+      container.appendChild(p);
+      p.addEventListener('animationend', () => p.remove(), { once: true });
+    }, i * 25);
+  }
+}
+
+function showXpPopup(xp, isUrgent, leveledUp) {
+  const el = document.createElement('div');
+  el.className = 'xp-popup' + (isUrgent ? ' urgent' : '');
+  el.textContent = isUrgent ? `🎯 緊急タスク撃破！ +${xp} XP` : `+${xp} XP`;
+  document.body.appendChild(el);
+  el.addEventListener('animationend', () => el.remove(), { once: true });
+  if (leveledUp) {
+    const { cur } = getLevelInfo(gameStats.xp);
+    setTimeout(() => toast(`🎉 レベルアップ！ ${cur.title} Lv.${cur.level} になった！`), 400);
+  }
+}
+
+function showComboPopup(count) {
+  const el = document.getElementById('comboPopup');
+  if (!el) return;
+  const labels = ['', '', 'コンボ ×2!', 'コンボ ×3!! 🔥', 'コンボ ×4!!! 🔥🔥', 'コンボ ×5!!!! ⚡'];
+  el.textContent = labels[Math.min(count, 5)] || `コンボ ×${count}!!!! ⚡⚡`;
+  el.className = 'combo-popup show';
+  clearTimeout(comboPopupTimer);
+  comboPopupTimer = setTimeout(() => el.classList.remove('show'), 1300);
+}
+
+function onTaskComplete(item) {
+  comboCount++;
+  clearTimeout(comboTimer);
+  comboTimer = setTimeout(() => { comboCount = 0; }, 3000);
+
+  const baseXP = item.priority === 'high' ? 50 : item.priority === 'medium' ? 20 : 10;
+  const bonus = comboCount >= 5 ? 30 : comboCount >= 4 ? 20 : comboCount >= 3 ? 10 : comboCount >= 2 ? 5 : 0;
+  const totalXP = baseXP + bonus;
+
+  const prevInfo = getLevelInfo(gameStats.xp);
+  gameStats.xp += totalXP;
+  gameStats.totalCompleted = (gameStats.totalCompleted || 0) + 1;
+
+  const today = todayISO();
+  if (gameStats.lastDate !== today) {
+    gameStats.streak = gameStats.lastDate === prevDayISO(today) ? (gameStats.streak || 0) + 1 : 1;
+    gameStats.lastDate = today;
+  }
+  saveGameStats(gameStats);
+
+  const newInfo = getLevelInfo(gameStats.xp);
+  const isUrgent = item.priority === 'high';
+  showConfetti(isUrgent);
+  showXpPopup(totalXP, isUrgent, newInfo.cur.level > prevInfo.cur.level);
+  if (comboCount >= 2) showComboPopup(comboCount);
+  renderGameStats();
+}
+
 // ===== 保存（localStorage）=====
 const STORE_KEY = 'voiceMemos.v1';
 const TOKEN_KEY = 'todoistToken';
@@ -713,6 +829,7 @@ document.addEventListener('change', (e) => {
   if (!item) return;
   item.done = cb.checked;
   saveMemos(memos);
+  if (cb.checked) onTaskComplete(item);
   const row = cb.closest('.item-row');
   if (row) {
     row.classList.toggle('done', cb.checked);
@@ -1200,6 +1317,7 @@ document.getElementById('clearTokenBtn').addEventListener('click', () => {
 refreshTokenStatus();
 setStatus('タップして録音');
 renderTodayTasks();
+renderGameStats();
 
 // ===== 共通 =====
 function esc(str) {

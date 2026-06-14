@@ -733,6 +733,125 @@ header {
   font-size: 0.76rem;
 }
 
+/* ===== ゲーム：ヘッダー stats ===== */
+.game-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding-bottom: 0.25rem;
+}
+.gs-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.gs-title {
+  font-size: 0.7rem;
+  color: var(--text-3);
+  font-weight: 500;
+}
+.gs-level {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #fbbf24;
+  background: rgba(251,191,36,0.12);
+  border: 1px solid rgba(251,191,36,0.22);
+  border-radius: 6px;
+  padding: 1px 6px;
+}
+.gs-streak {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #f97316;
+}
+.gs-bar {
+  width: 88px;
+  height: 3px;
+  background: var(--surface-2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.gs-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #fbbf24, #f97316);
+  border-radius: 2px;
+  transition: width 0.6s ease;
+}
+
+/* ===== ゲーム：コンボポップアップ ===== */
+.combo-popup {
+  position: fixed;
+  top: 40%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.55rem;
+  font-weight: 900;
+  color: #f97316;
+  text-shadow: 0 2px 24px rgba(249,115,22,0.7);
+  z-index: 160;
+  pointer-events: none;
+  opacity: 0;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+.combo-popup.show { animation: comboPop 1.3s ease forwards; }
+@keyframes comboPop {
+  0%   { opacity: 0; transform: translateX(-50%) scale(0.6); }
+  18%  { opacity: 1; transform: translateX(-50%) scale(1.18); }
+  60%  { opacity: 1; transform: translateX(-50%) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) scale(0.9) translateY(-18px); }
+}
+
+/* ===== ゲーム：XPポップアップ ===== */
+.xp-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-50%);
+  background: rgba(74,222,128,0.92);
+  color: #09090b;
+  font-size: 1.05rem;
+  font-weight: 800;
+  padding: 0.48rem 1.2rem;
+  border-radius: 14px;
+  z-index: 155;
+  pointer-events: none;
+  white-space: nowrap;
+  animation: xpPop 1.3s ease forwards;
+}
+.xp-popup.urgent {
+  background: rgba(239,68,68,0.92);
+  color: #fff;
+  font-size: 0.9rem;
+}
+@keyframes xpPop {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(-40%) scale(0.7); }
+  18%  { opacity: 1; transform: translateX(-50%) translateY(-50%) scale(1.08); }
+  65%  { opacity: 1; transform: translateX(-50%) translateY(-60%) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-80%) scale(0.9); }
+}
+
+/* ===== ゲーム：紙吹雪 ===== */
+#confettiContainer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 200;
+  overflow: hidden;
+}
+.confetti-p {
+  position: absolute;
+  top: -10px;
+  border-radius: 2px;
+  animation: confettiFall linear forwards;
+}
+@keyframes confettiFall {
+  0%   { transform: translateY(0) rotate(0deg) scaleX(1); opacity: 1; }
+  50%  { transform: translateY(45vh) rotate(360deg) scaleX(-1); opacity: 1; }
+  100% { transform: translateY(105vh) rotate(720deg) scaleX(1); opacity: 0; }
+}
+
 /* ===== スワイプ削除 ===== */
 .swipe-wrapper {
   position: relative;
