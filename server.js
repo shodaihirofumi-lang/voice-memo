@@ -490,7 +490,7 @@ ${context || '（メモなし）'}
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🎙️  声でメモ: http://localhost:${PORT}`);
+  console.log(`🎙️  思考整理: http://localhost:${PORT}`);
 });
 
 // Render無料プランのスリープ対策: 日本時間7時〜24時は10分ごとに自分にアクセス

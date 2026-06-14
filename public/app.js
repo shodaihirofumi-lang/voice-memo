@@ -431,7 +431,7 @@ function checkDueNotifications() {
   if (due > 0) {
     gameStats.lastNotifyDate = today;
     saveGameStats(gameStats);
-    try { new Notification('声でメモ', { body: `期限が来ているタスクが ${due}件 あります`, icon: 'icons/icon-192.png' }); } catch {}
+    try { new Notification('思考整理', { body: `期限が来ているタスクが ${due}件 あります`, icon: 'icons/icon-192.png' }); } catch {}
   }
 }
 
@@ -1978,7 +1978,7 @@ async function shareMemo(memo) {
 
   if (navigator.share) {
     try {
-      await navigator.share({ title: o.title || '声でメモ', text });
+      await navigator.share({ title: o.title || '思考整理', text });
     } catch {}
   } else {
     try {

@@ -1,6 +1,6 @@
 {
-  "name": "声でメモ",
-  "short_name": "声でメモ",
+  "name": "思考整理",
+  "short_name": "思考整理",
   "description": "話すだけで、AIがメモを整理します",
   "start_url": "/",
   "display": "standalone",
