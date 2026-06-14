@@ -1,4 +1,4 @@
-const CACHE = 'voice-memo-v15';
+const CACHE = 'voice-memo-v16';
 const ASSETS = [
   '/',
   '/style.css',

@@ -71,6 +71,17 @@ const BADGES = [
   { id: 'lucky',       icon: '🎰', label: 'ラッキー',    desc: 'ガチャで大当たり（XP×3）',    check: (g) => !!g.gotJackpot },
   { id: 'night_owl',   icon: '🦉', label: '夜型',        desc: '深夜（23時以降）にタスク完了',check: (g) => !!g.nightOwl },
   { id: 'early_bird',  icon: '🌅', label: '朝型',        desc: '早朝（6時前）にタスク完了',   check: (g) => !!g.earlyBird },
+  { id: 'boss_1',      icon: '⚔️', label: 'ボスハンター',desc: '週間ボスを初撃破',            check: (g) => (g.bossDefeats || 0) >= 1 },
+  { id: 'boss_5',      icon: '🛡️', label: 'ボスマスター',desc: '週間ボスを5体撃破',          check: (g) => (g.bossDefeats || 0) >= 5 },
+];
+
+const BOSSES = [
+  { emoji: '👹', name: 'タスク鬼' },
+  { emoji: '🐉', name: '締切ドラゴン' },
+  { emoji: '👻', name: '先延ばし幽霊' },
+  { emoji: '🦖', name: 'ダラダラ恐竜' },
+  { emoji: '🧟', name: '放置ゾンビ' },
+  { emoji: '👾', name: 'やること星人' },
 ];
 
 const DAILY_MISSIONS = [
@@ -110,6 +121,123 @@ function prevDayISO(iso) {
 
 let gameStats = loadGameStats();
 let comboCount = 0, comboTimer = null, comboPopupTimer = null;
+
+// ===== 効果音（Web Audioで生成） =====
+let soundEnabled = localStorage.getItem('voiceMemoSound') !== '0';
+let hapticEnabled = localStorage.getItem('voiceMemoHaptic') !== '0';
+let sfxCtx = null;
+function getSfxCtx() {
+  try {
+    if (!sfxCtx) sfxCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (sfxCtx.state === 'suspended') sfxCtx.resume().catch(() => {});
+    return sfxCtx;
+  } catch { return null; }
+}
+function beep(ctx, freq, start, dur, type = 'sine', gain = 0.14) {
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = type;
+  o.frequency.value = freq;
+  o.connect(g); g.connect(ctx.destination);
+  const t = ctx.currentTime + start;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(gain, t + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.start(t); o.stop(t + dur + 0.02);
+}
+function playSound(kind) {
+  if (!soundEnabled) return;
+  const ctx = getSfxCtx();
+  if (!ctx) return;
+  try {
+    if (kind === 'complete') { beep(ctx, 660, 0, 0.12); beep(ctx, 880, 0.07, 0.14); }
+    else if (kind === 'combo') { beep(ctx, 620 + Math.min(comboCount, 8) * 70, 0, 0.11, 'square', 0.12); }
+    else if (kind === 'levelup') { [523, 659, 784, 1047].forEach((f, i) => beep(ctx, f, i * 0.1, 0.2, 'triangle', 0.18)); }
+    else if (kind === 'gacha') { [880, 1175, 1568].forEach((f, i) => beep(ctx, f, i * 0.06, 0.13, 'sine', 0.14)); }
+    else if (kind === 'boss') { [392, 523, 659, 784, 1047].forEach((f, i) => beep(ctx, f, i * 0.12, 0.28, 'sawtooth', 0.16)); }
+  } catch {}
+}
+function haptic(pattern) {
+  if (!hapticEnabled) return;
+  try { if (navigator.vibrate) navigator.vibrate(pattern); } catch {}
+}
+
+// ===== 週間ボス戦 =====
+function hashStr(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h; }
+function weekKey() {
+  const d = new Date();
+  const day = (d.getDay() + 6) % 7; // 月曜=0
+  d.setDate(d.getDate() - day);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function getBoss() {
+  const wk = weekKey();
+  if (!gameStats.boss || gameStats.boss.weekKey !== wk) {
+    const lvl = getLevelInfo(gameStats.xp).cur.level;
+    const idx = Math.abs(hashStr(wk)) % BOSSES.length;
+    const maxHp = 10 + lvl * 3;
+    gameStats.boss = { weekKey: wk, idx, maxHp, hp: maxHp, defeated: false };
+    saveGameStats(gameStats);
+  }
+  return gameStats.boss;
+}
+function damageBoss(item) {
+  const boss = getBoss();
+  if (boss.defeated) return;
+  const dmg = item.priority === 'high' ? 3 : item.priority === 'medium' ? 2 : 1;
+  boss.hp = Math.max(0, boss.hp - dmg);
+  if (boss.hp === 0) {
+    boss.defeated = true;
+    gameStats.bossDefeats = (gameStats.bossDefeats || 0) + 1;
+    const reward = 100 + getLevelInfo(gameStats.xp).cur.level * 20;
+    gameStats.xp += reward;
+    saveGameStats(gameStats);
+    playSound('boss');
+    haptic([60, 40, 60, 40, 140]);
+    showConfetti(true);
+    const b = BOSSES[boss.idx];
+    setTimeout(() => toast(`⚔️ 今週のボス「${b.name}」を撃破！ +${reward} XP`), 650);
+  } else {
+    saveGameStats(gameStats);
+  }
+  renderBoss();
+}
+function renderBoss() {
+  const el = document.getElementById('bossCard');
+  if (!el) return;
+  const boss = getBoss();
+  const b = BOSSES[boss.idx];
+  if (boss.defeated) {
+    el.innerHTML = `<div class="glass-card boss-card defeated">
+      <span class="boss-emoji">${b.emoji}</span>
+      <div class="boss-info">
+        <div class="boss-name">${esc(b.name)}</div>
+        <div class="boss-status">✅ 今週は撃破済み！また来週</div>
+      </div>
+    </div>`;
+    return;
+  }
+  const pct = Math.round((boss.hp / boss.maxHp) * 100);
+  el.innerHTML = `<div class="glass-card boss-card">
+    <span class="boss-emoji">${b.emoji}</span>
+    <div class="boss-info">
+      <div class="boss-name">今週のボス：${esc(b.name)}</div>
+      <div class="boss-hpbar"><div class="boss-hpfill" style="width:${pct}%"></div></div>
+      <div class="boss-hptext">HP ${boss.hp}/${boss.maxHp}　タスク完了で攻撃！</div>
+    </div>
+  </div>`;
+}
+
+function renderGameSettings() {
+  const el = document.getElementById('gameSettings');
+  if (!el) return;
+  el.innerHTML = `<div class="glass-card settings-card">
+    <h3 class="card-label">ゲーム設定</h3>
+    <div class="toggle-row"><span>効果音</span>
+      <button class="toggle-btn${soundEnabled ? ' on' : ''}" data-toggle-game="sound">${soundEnabled ? 'ON' : 'OFF'}</button></div>
+    <div class="toggle-row"><span>バイブ（振動）</span>
+      <button class="toggle-btn${hapticEnabled ? ' on' : ''}" data-toggle-game="haptic">${hapticEnabled ? 'ON' : 'OFF'}</button></div>
+  </div>`;
+}
 
 function renderGameStats() {
   const el = document.getElementById('gameStats');
@@ -324,10 +452,19 @@ function onTaskComplete(item) {
 
   const newInfo = getLevelInfo(gameStats.xp);
   const isUrgent = item.priority === 'high';
+  const leveledUp = newInfo.cur.level > prevInfo.cur.level;
   showConfetti(isUrgent);
-  showXpPopup(totalXP, isUrgent, newInfo.cur.level > prevInfo.cur.level);
+  showXpPopup(totalXP, isUrgent, leveledUp);
   if (comboCount >= 2) showComboPopup(comboCount);
   if (gacha) setTimeout(() => showGachaPopup(gacha), 350);
+
+  playSound('complete');
+  haptic(isUrgent ? [25, 20, 45] : 22);
+  if (comboCount >= 2) playSound('combo');
+  if (gacha) setTimeout(() => playSound('gacha'), 350);
+  if (leveledUp) { playSound('levelup'); haptic([40, 30, 90]); }
+
+  damageBoss(item);
 
   renderGameStats();
   checkAchievements(prevBadges);
@@ -393,9 +530,9 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById(`view-${btn.dataset.view}`).classList.add('active');
-    if (btn.dataset.view === 'record') { renderTodayTasks(); renderDailyMission(); }
+    if (btn.dataset.view === 'record') { renderTodayTasks(); renderDailyMission(); renderBoss(); }
     if (btn.dataset.view === 'history') renderHistory();
-    if (btn.dataset.view === 'settings') { renderTrash(); renderStats(); renderBadges(); }
+    if (btn.dataset.view === 'settings') { renderTrash(); renderStats(); renderBadges(); renderGameSettings(); }
   });
 });
 
@@ -1105,6 +1242,21 @@ document.addEventListener('click', (e) => {
     return;
   }
 
+  const gameToggle = e.target.closest('[data-toggle-game]');
+  if (gameToggle) {
+    if (gameToggle.dataset.toggleGame === 'sound') {
+      soundEnabled = !soundEnabled;
+      localStorage.setItem('voiceMemoSound', soundEnabled ? '1' : '0');
+      if (soundEnabled) playSound('complete');
+    } else {
+      hapticEnabled = !hapticEnabled;
+      localStorage.setItem('voiceMemoHaptic', hapticEnabled ? '1' : '0');
+      if (hapticEnabled) haptic(35);
+    }
+    renderGameSettings();
+    return;
+  }
+
   const btn = e.target.closest('[data-action]');
 
   if (!btn) {
@@ -1552,6 +1704,7 @@ setStatus('タップして録音');
 renderTodayTasks();
 renderGameStats();
 renderDailyMission();
+renderBoss();
 
 // ===== 共通 =====
 function esc(str) {

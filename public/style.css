@@ -1279,6 +1279,84 @@ header {
   color: var(--text-2);
 }
 
+/* ===== 週間ボス戦 ===== */
+.boss-card {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  border: 1px solid rgba(239,68,68,0.28);
+  background: linear-gradient(135deg, rgba(239,68,68,0.1), rgba(249,115,22,0.05));
+}
+.boss-card.defeated {
+  border-color: rgba(74,222,128,0.28);
+  background: linear-gradient(135deg, rgba(74,222,128,0.08), rgba(74,222,128,0.03));
+}
+.boss-emoji {
+  font-size: 2.2rem;
+  line-height: 1;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 8px rgba(239,68,68,0.4));
+}
+.boss-card.defeated .boss-emoji { filter: grayscale(0.5) drop-shadow(0 2px 8px rgba(74,222,128,0.3)); }
+.boss-info { flex: 1; min-width: 0; }
+.boss-name {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.35rem;
+}
+.boss-hpbar {
+  height: 9px;
+  background: var(--surface-2);
+  border-radius: 5px;
+  overflow: hidden;
+  margin-bottom: 0.25rem;
+}
+.boss-hpfill {
+  height: 100%;
+  background: linear-gradient(90deg, #ef4444, #f97316);
+  border-radius: 5px;
+  transition: width 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.boss-hptext {
+  font-size: 0.7rem;
+  color: var(--text-3);
+  font-weight: 600;
+}
+.boss-status {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--green);
+}
+
+/* ===== トグル（ゲーム設定） ===== */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+.toggle-row + .toggle-row { border-top: 1px solid var(--border); }
+.toggle-btn {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 16px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.toggle-btn.on {
+  color: #09090b;
+  background: var(--green);
+  border-color: transparent;
+}
+
 /* ===== スマホ ===== */
 @media (max-width: 480px) {
   html { font-size: 17px; }
