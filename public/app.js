@@ -1101,18 +1101,20 @@ function renderPendingTasks() {
 
 function renderTodayTasks() {
   const today = todayISO();
-  const tasks = [];
+  const byCat = { tasks: [], reminders: [], shopping: [], ideas: [], notes: [] };
+  let total = 0;
   for (const memo of memos) {
     const cats = (memo.organized && memo.organized.categories) || {};
-    for (const key of ['tasks', 'reminders']) {
+    for (const key of Object.keys(byCat)) {
       (cats[key] || []).forEach((item, idx) => {
         if (!item.done) {
-          tasks.push({ memoId: memo.id, cat: key, idx, text: item.text, due: item.due || null, priority: item.priority || null, ts: memo.ts || 0, isWork: taskTypeBonus(item.text).type === 'work' });
+          byCat[key].push({ memoId: memo.id, cat: key, idx, text: item.text, due: item.due || null, priority: item.priority || null, ts: memo.ts || 0 });
+          total++;
         }
       });
     }
   }
-  if (tasks.length === 0) {
+  if (total === 0) {
     todayTasksEl.classList.add('hidden');
     todayTasksEl.innerHTML = '';
     return;
@@ -1139,14 +1141,20 @@ function renderTodayTasks() {
       <span class="today-task-body">${pri}<span class="today-task-text">${esc(t.text)}</span>${dueLabel}</span>
     </div>`;
   };
-  // 仕事系とその他で分ける
-  const work = tasks.filter((t) => t.isWork).sort(sortFn);
-  const other = tasks.filter((t) => !t.isWork).sort(sortFn);
   const card = (label, list) => list.length
-    ? `<div class="glass-card today-tasks-card"><h3 class="card-label">${label}（${list.length}）</h3>${list.map(rowHtml).join('')}</div>`
+    ? `<div class="glass-card today-tasks-card"><h3 class="card-label">${label}（${list.length}）</h3>${list.sort(sortFn).map(rowHtml).join('')}</div>`
     : '';
+  // タスクは仕事系とその他で分割、他カテゴリはそのまま
+  const work = byCat.tasks.filter((t) => taskTypeBonus(t.text).type === 'work');
+  const otherTasks = byCat.tasks.filter((t) => taskTypeBonus(t.text).type !== 'work');
   todayTasksEl.classList.remove('hidden');
-  todayTasksEl.innerHTML = card('💼 仕事', work) + card('🗒 タスク', other);
+  todayTasksEl.innerHTML =
+    card('💼 仕事', work) +
+    card('🗒 タスク', otherTasks) +
+    card('🔔 リマインダー', byCat.reminders) +
+    card('🛒 買い物', byCat.shopping) +
+    card('💡 アイデア', byCat.ideas) +
+    card('📝 メモ', byCat.notes);
 }
 
 function getDateGroup(ts) {
