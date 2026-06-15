@@ -1599,6 +1599,126 @@ header {
 }
 .cal-legend .cal-cell { width: 12px; height: 12px; aspect-ratio: auto; }
 
+/* ===== ポモドーロ（集中モード）===== */
+.pomodoro-card {
+  border: 1px solid rgba(96,165,250,0.3);
+  background: linear-gradient(135deg, rgba(96,165,250,0.07), rgba(255,255,255,0.01));
+  text-align: center;
+}
+.pomodoro-card.running {
+  border-color: rgba(239,68,68,0.5);
+  background: linear-gradient(135deg, rgba(239,68,68,0.09), rgba(251,191,36,0.04));
+  box-shadow: 0 0 20px -6px rgba(239,68,68,0.4);
+  animation: pomPulse 2s ease-in-out infinite;
+}
+@keyframes pomPulse {
+  0%, 100% { box-shadow: 0 0 20px -6px rgba(239,68,68,0.4); }
+  50%       { box-shadow: 0 0 30px -4px rgba(239,68,68,0.65); }
+}
+.pom-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+}
+.pom-badge { font-size: 0.7rem; font-weight: 800; color: var(--red-soft); }
+.pom-badge.blink { animation: blink 1.3s ease-in-out infinite; }
+.pom-timer {
+  font-size: 2.6rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  margin-bottom: 0.7rem;
+}
+.pomodoro-card.running .pom-timer { color: #f87171; }
+.pom-bar {
+  height: 6px;
+  background: var(--surface-2);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 0.8rem;
+}
+.pom-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #60a5fa, #818cf8);
+  border-radius: 3px;
+  transition: width 1s linear;
+}
+.pomodoro-card.running .pom-fill { background: linear-gradient(90deg, #ef4444, #f97316); }
+.pom-actions { margin-bottom: 0.5rem; }
+.pom-hint { font-size: 0.72rem; color: var(--text-3); }
+
+/* ===== 相棒モンスター ===== */
+.companion-card {
+  border: 1px solid rgba(192,132,252,0.3);
+  background: linear-gradient(135deg, rgba(192,132,252,0.07), rgba(255,255,255,0.01));
+}
+.companion-body { display: flex; align-items: center; gap: 1rem; }
+.companion-avatar {
+  width: 54px;
+  height: 54px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(192,132,252,0.15), rgba(255,255,255,0.02));
+  box-shadow: 0 0 16px -4px rgba(192,132,252,0.5);
+  animation: bossFloat 3s ease-in-out infinite;
+}
+.companion-avatar svg { width: 40px; height: 40px; }
+.companion-stage { font-size: 0.68rem; font-weight: 700; color: #c084fc; letter-spacing: 0.04em; margin-bottom: 0.2rem; }
+.companion-name { font-size: 0.96rem; font-weight: 700; color: var(--text); margin-bottom: 0.25rem; }
+.companion-next { font-size: 0.72rem; color: var(--text-3); margin-top: 0.2rem; }
+.companion-evolve { font-size: 0.72rem; color: #c084fc; font-weight: 700; margin-top: 0.2rem; }
+.companion-xpbar { height: 5px; background: var(--surface-2); border-radius: 3px; overflow: hidden; margin-top: 0.35rem; }
+.companion-xpfill { height: 100%; background: linear-gradient(90deg, #c084fc, #818cf8); border-radius: 3px; transition: width 0.5s ease; }
+
+/* ===== 討伐記録 ===== */
+.defeated-card { border: 1px solid rgba(74,222,128,0.25); }
+.defeated-list { max-height: 160px; overflow-y: auto; }
+.defeated-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.28rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.84rem;
+}
+.defeated-row:last-child { border-bottom: none; }
+.defeated-icon { font-size: 0.9rem; flex-shrink: 0; }
+.defeated-text { flex: 1; color: var(--text-2); word-break: break-word; opacity: 0.65; text-decoration: line-through; }
+.defeated-xp { font-size: 0.7rem; font-weight: 700; color: #4ade80; flex-shrink: 0; }
+
+/* ===== タスク分解ボタン ===== */
+.decompose-btn {
+  font-family: inherit;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--text-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1px 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: auto;
+  transition: color 0.15s, border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.decompose-btn:hover { color: #c084fc; border-color: rgba(192,132,252,0.4); }
+.decompose-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* ===== 冒険ストーリーテキスト（バトル内）===== */
+.story-text {
+  font-size: 0.7rem;
+  color: var(--text-3);
+  margin-top: 0.35rem;
+  font-style: italic;
+  line-height: 1.5;
+}
+
 /* ===== スマホ ===== */
 @media (max-width: 480px) {
   html { font-size: 17px; }

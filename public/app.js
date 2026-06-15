@@ -103,6 +103,32 @@ const BOSS_ENEMIES = [
     `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect x="11" y="12" width="26" height="26" rx="5" fill="#78716c"/><rect x="14" y="8" width="20" height="6" rx="2" fill="#57534e"/><rect x="15.5" y="22" width="7.5" height="5" rx="1.5" fill="#1c1917"/><rect x="25" y="22" width="7.5" height="5" rx="1.5" fill="#1c1917"/><circle cx="19.5" cy="24.5" r="1.5" fill="#fbbf24"/><circle cx="28.5" cy="24.5" r="1.5" fill="#fbbf24"/><path d="M17 32 h14" stroke="#1c1917" stroke-width="2.4" stroke-linecap="round"/><path d="M13 18 l3 0 M32 30 l3 0 M24 14 l0 -3" stroke="#57534e" stroke-width="1.6"/></svg>` },
 ];
 
+// 相棒モンスター（3段階進化）
+const COMPANION_STAGES = [
+  { name: 'プチ',   stageLabel: 'Lv.1 幼体', xpNeeded: 0,
+    svg: `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path d="M24 16 C17 16 12 22 12 28 C12 33 16 36 24 36 C32 36 36 33 36 28 C36 22 31 16 24 16 Z" fill="#c084fc"/><path d="M19 14 l1 3 M29 14 l-1 3" stroke="#a855f7" stroke-width="2" stroke-linecap="round"/><circle cx="20" cy="27" r="2.2" fill="#fff"/><circle cx="28" cy="27" r="2.2" fill="#fff"/><circle cx="20" cy="27.5" r="1" fill="#4c1d95"/><circle cx="28" cy="27.5" r="1" fill="#4c1d95"/><path d="M21 31 Q24 33 27 31" stroke="#4c1d95" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg>` },
+  { name: 'プチ改',  stageLabel: 'Lv.2 成長', xpNeeded: 500,
+    svg: `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path d="M8 26 L17 22 L14 29 Z" fill="#a855f7"/><path d="M40 26 L31 22 L34 29 Z" fill="#a855f7"/><path d="M24 13 C16 13 11 20 11 27 C11 32.5 16 36 24 36 C32 36 37 32.5 37 27 C37 20 32 13 24 13 Z" fill="#c084fc"/><ellipse cx="20" cy="26" rx="2.8" ry="3" fill="#fff"/><ellipse cx="28" cy="26" rx="2.8" ry="3" fill="#fff"/><circle cx="20" cy="26.5" r="1.2" fill="#3b0764"/><circle cx="28" cy="26.5" r="1.2" fill="#3b0764"/><path d="M21 31 Q24 34 27 31" stroke="#3b0764" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M22 19 l-1 -3 M26 19 l1 -3" stroke="#c084fc" stroke-width="2.5" stroke-linecap="round"/></svg>` },
+  { name: 'プチ神',  stageLabel: 'Lv.3 最強進化', xpNeeded: 2000,
+    svg: `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><circle cx="24" cy="10" r="3.5" fill="#fde047" opacity="0.85"/><path d="M6 24 L17 21 L13 29 Z" fill="#7c3aed"/><path d="M42 24 L31 21 L35 29 Z" fill="#7c3aed"/><path d="M24 12 C15 12 10 20 10 27 C10 33 16 38 24 38 C32 38 38 33 38 27 C38 20 33 12 24 12 Z" fill="#7c3aed"/><path d="M10 27 C8 20 24 12 24 12 C24 12 40 20 38 27 Z" fill="#6d28d9"/><ellipse cx="19" cy="26" rx="3" ry="3.5" fill="#fff"/><ellipse cx="29" cy="26" rx="3" ry="3.5" fill="#fff"/><circle cx="19" cy="26.5" r="1.4" fill="#a855f7"/><circle cx="29" cy="26.5" r="1.4" fill="#a855f7"/><circle cx="19.5" cy="26" r="0.6" fill="#fff"/><circle cx="29.5" cy="26" r="0.6" fill="#fff"/><path d="M20 32 Q24 35.5 28 32" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>` },
+];
+
+// 冒険ストーリー章（ボス討伐数で進む）
+const STORY_CHAPTERS = [
+  { bossesNeeded: 0,  text: '旅の始まり。タスクを倒して、強くなろう！' },
+  { bossesNeeded: 1,  text: 'ドラゴンを倒した！次なる強敵が目の前に現れた…' },
+  { bossesNeeded: 2,  text: '魔王すら打ち倒した！でも、ゴーレムの咆哮が聞こえる…' },
+  { bossesNeeded: 3,  text: '三大ボスを制覇！英雄の名がとどろく。さらなる挑戦が待つ！' },
+  { bossesNeeded: 6,  text: 'すべての強敵を圧倒！思考整理の達人として伝説に名を残した。' },
+  { bossesNeeded: 10, text: '神の域に達した！もうここには敵など存在しない…今は自分との戦いだ。' },
+];
+function getCurrentStory() {
+  const bosses = gameStats.bossDefeats || 0;
+  let ch = STORY_CHAPTERS[0];
+  for (const c of STORY_CHAPTERS) { if (bosses >= c.bossesNeeded) ch = c; }
+  return ch;
+}
+
 const DAILY_MISSIONS = [
   { type: 'tasks_3',  label: 'タスクを3個完了する',     target: 3, bonusXP: 50,  key: 'tasksDone' },
   { type: 'tasks_5',  label: 'タスクを5個完了する',     target: 5, bonusXP: 100, key: 'tasksDone' },
@@ -116,7 +142,8 @@ function loadGameStats() {
   const defaults = { xp: 0, streak: 0, lastDate: null, totalCompleted: 0,
     maxStreak: 0, urgentCompleted: 0, weekdayStats: [0,0,0,0,0,0,0],
     badges: [], dailyMission: null, maxCombo: 0, memoCount: 0,
-    gotJackpot: false, nightOwl: false, earlyBird: false };
+    gotJackpot: false, nightOwl: false, earlyBird: false,
+    todayDefeated: [], todayDefeatedDate: null };
   try {
     const saved = JSON.parse(localStorage.getItem(GAME_KEY));
     return saved ? { ...defaults, ...saved } : defaults;
@@ -242,6 +269,197 @@ function showAttackEffect(dmg, bonus) {
   card.appendChild(el);
   el.addEventListener('animationend', () => el.remove(), { once: true });
 }
+// ===== ポモドーロ（集中モード）=====
+let pomodoroRunning = false;
+let pomodoroElapsed = 0;
+const POMODORO_DURATION = 25 * 60;
+let pomodoroInterval = null;
+
+function renderPomodoro() {
+  const el = document.getElementById('pomodoroCard');
+  if (!el) return;
+  const remaining = POMODORO_DURATION - pomodoroElapsed;
+  const m = Math.floor(remaining / 60);
+  const s = remaining % 60;
+  const pct = Math.round((pomodoroElapsed / POMODORO_DURATION) * 100);
+  el.innerHTML = `<div class="glass-card pomodoro-card${pomodoroRunning ? ' running' : ''}">
+    <div class="pom-head">
+      <span class="card-label">⏱ 集中モード（ポモドーロ）</span>
+      ${pomodoroRunning ? '<span class="pom-badge blink">集中中</span>' : ''}
+    </div>
+    <div class="pom-timer">${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}</div>
+    <div class="pom-bar"><div class="pom-fill" style="width:${pct}%"></div></div>
+    <div class="pom-actions">
+      ${pomodoroRunning
+        ? '<button class="pill-btn" id="pomStopBtn">⏹ 中断</button>'
+        : '<button class="pill-btn primary" id="pomStartBtn">▶ 集中開始</button>'}
+    </div>
+    <p class="pom-hint">25分集中すると敵に大ダメージ＋150XP！</p>
+  </div>`;
+  if (pomodoroRunning) {
+    document.getElementById('pomStopBtn')?.addEventListener('click', stopPomodoro);
+  } else {
+    document.getElementById('pomStartBtn')?.addEventListener('click', startPomodoro);
+  }
+}
+
+function startPomodoro() {
+  if (pomodoroRunning) return;
+  pomodoroRunning = true;
+  pomodoroElapsed = 0;
+  pomodoroInterval = setInterval(() => {
+    pomodoroElapsed++;
+    if (pomodoroElapsed >= POMODORO_DURATION) pomodoroComplete();
+    else renderPomodoro();
+  }, 1000);
+  renderPomodoro();
+  haptic([20, 10, 20]);
+  toast('⏱ 集中モード開始！25分間タスクに集中しよう！');
+}
+
+function stopPomodoro() {
+  clearInterval(pomodoroInterval);
+  pomodoroRunning = false;
+  pomodoroElapsed = 0;
+  renderPomodoro();
+  toast('集中モードを中断しました');
+}
+
+function pomodoroComplete() {
+  clearInterval(pomodoroInterval);
+  pomodoroRunning = false;
+  pomodoroElapsed = 0;
+
+  const xpReward = 150;
+  gameStats.xp += xpReward;
+  saveGameStats(gameStats);
+  renderGameStats();
+
+  const q = getQuest();
+  const bigDmg = 10;
+  q.hp = Math.max(0, q.hp - bigDmg);
+  if (q.hp === 0) {
+    const e = q.isBoss ? BOSS_ENEMIES[q.idx] : MONSTERS[q.idx];
+    const reward = q.isBoss ? (80 + q.stage * 6) : (8 + q.stage);
+    gameStats.xp += reward;
+    gameStats.enemiesDefeated = (gameStats.enemiesDefeated || 0) + 1;
+    if (q.isBoss) gameStats.bossDefeats = (gameStats.bossDefeats || 0) + 1;
+    const dexKey = (q.isBoss ? 'b' : 'm') + q.idx;
+    gameStats.monsterDex = gameStats.monsterDex || {};
+    gameStats.monsterDex[dexKey] = (gameStats.monsterDex[dexKey] || 0) + 1;
+    gameStats.quest = makeEnemy(q.stage + 1);
+    saveGameStats(gameStats);
+    playSound(q.isBoss ? 'boss' : 'complete');
+    if (q.isBoss) showConfetti(true);
+    setTimeout(() => toast(`⏱ 集中完了！⚔️ ${e.name} を たおした！ +${reward} XP`), 500);
+  } else {
+    saveGameStats(gameStats);
+  }
+  renderBattle();
+  showAttackEffect(bigDmg, { type: 'work' });
+  showConfetti(true);
+  playSound('boss');
+  haptic([60, 40, 60, 40, 60]);
+  showXpPopup(xpReward, false, false, { type: 'work', label: '⏱ 集中完了！' });
+  renderPomodoro();
+  renderCompanion();
+  if (notifyEnabled && 'Notification' in window && Notification.permission === 'granted') {
+    try { new Notification('思考整理', { body: '25分集中完了！+150 XP & 大ダメージ獲得！', icon: 'icons/icon-192.png' }); } catch {}
+  }
+}
+
+// ===== 相棒モンスター =====
+function getCompanionInfo() {
+  const xp = gameStats.xp;
+  let idx = 0;
+  for (let i = COMPANION_STAGES.length - 1; i >= 0; i--) {
+    if (xp >= COMPANION_STAGES[i].xpNeeded) { idx = i; break; }
+  }
+  return { stage: COMPANION_STAGES[idx], stageIdx: idx, nextStage: COMPANION_STAGES[idx + 1] || null };
+}
+
+function renderCompanion() {
+  const el = document.getElementById('companionCard');
+  if (!el) return;
+  const xp = gameStats.xp;
+  const { stage, nextStage } = getCompanionInfo();
+  let xpBarHtml = '';
+  if (nextStage) {
+    const pct = Math.min(100, Math.round(((xp - stage.xpNeeded) / (nextStage.xpNeeded - stage.xpNeeded)) * 100));
+    xpBarHtml = `<div class="companion-xpbar"><div class="companion-xpfill" style="width:${pct}%"></div></div>
+      <div class="companion-next">あと ${nextStage.xpNeeded - xp} XPで進化！</div>`;
+  } else {
+    xpBarHtml = `<div class="companion-evolve">✨ 最強形態！</div>`;
+  }
+  el.innerHTML = `<div class="glass-card companion-card">
+    <div class="companion-body">
+      <div class="companion-avatar">${stage.svg}</div>
+      <div>
+        <div class="companion-stage">${stage.stageLabel}</div>
+        <div class="companion-name">🐾 ${stage.name}</div>
+        ${xpBarHtml}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ===== 討伐記録（今日完了したタスク）=====
+function renderDefeatedToday() {
+  const el = document.getElementById('defeatedToday');
+  if (!el) return;
+  const today = todayISO();
+  const list = (gameStats.todayDefeatedDate === today && gameStats.todayDefeated) || [];
+  if (list.length === 0) { el.innerHTML = ''; return; }
+  const totalXP = list.reduce((s, d) => s + (d.xp || 0), 0);
+  const rows = list.slice().reverse().map((d) =>
+    `<div class="defeated-row">
+      <span class="defeated-icon">${d.bonus === 'meditation' ? '🧘' : d.bonus === 'work' ? '💼' : '⚔️'}</span>
+      <span class="defeated-text">${esc(d.text)}</span>
+      <span class="defeated-xp">+${d.xp}XP</span>
+    </div>`
+  ).join('');
+  el.innerHTML = `<div class="glass-card defeated-card">
+    <h3 class="card-label">⚔️ 今日の討伐記録（${list.length}体・合計${totalXP}XP）</h3>
+    <div class="defeated-list">${rows}</div>
+  </div>`;
+}
+
+// ===== AIタスク分解 =====
+async function handleDecompose(memoId, cat, idx) {
+  const memo = findMemo(memoId);
+  if (!memo) return;
+  const item = (((memo.organized || {}).categories || {})[cat] || [])[idx];
+  if (!item) return;
+
+  const btn = document.querySelector(`[data-decomp-id="${memoId}"][data-decomp-cat="${cat}"][data-decomp-idx="${idx}"]`);
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+
+  try {
+    const r = await fetch('/api/decompose', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task: item.text }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'エラー');
+
+    const steps = data.steps;
+    if (!steps || steps.length === 0) { toast('分解できませんでした'); return; }
+
+    const cats = memo.organized.categories;
+    const newItems = steps.map((s) => ({ text: s, due: item.due, done: false, priority: item.priority }));
+    cats[cat].splice(idx, 1, ...newItems);
+    saveMemos(memos);
+    renderTodayTasks();
+    renderDailyQuest();
+    renderResult();
+    toast(`✂️ 「${item.text.slice(0, 14)}」を${newItems.length}つに分解しました`);
+  } catch (err) {
+    toast(`分解エラー: ${err.message}`);
+    if (btn) { btn.disabled = false; btn.textContent = '🔪分解'; }
+  }
+}
+
 function renderBattle() {
   const el = document.getElementById('bossCard');
   if (!el) return;
@@ -257,6 +475,7 @@ function renderBattle() {
       <div class="battle-name">${tag}${esc(e.name)}</div>
       <div class="boss-hpbar"><div class="boss-hpfill" style="width:${pct}%"></div></div>
       <div class="boss-hptext">HP ${q.hp}/${q.maxHp}　タスク完了でこうげき！</div>
+      <div class="story-text">${esc(getCurrentStory().text)}</div>
     </div>
   </div>`;
 }
@@ -681,9 +900,21 @@ function onTaskComplete(item) {
   if (gacha) setTimeout(() => playSound('gacha'), 350);
   if (leveledUp) { playSound('levelup'); haptic([40, 30, 90]); }
 
+  // 討伐記録に追加（日付が変わったらリセット）
+  const todayForDefeated = todayISO();
+  if (gameStats.todayDefeatedDate !== todayForDefeated) {
+    gameStats.todayDefeated = [];
+    gameStats.todayDefeatedDate = todayForDefeated;
+  }
+  gameStats.todayDefeated = gameStats.todayDefeated || [];
+  gameStats.todayDefeated.push({ text: item.text, xp: totalXP, bonus: bonus.type });
+  saveGameStats(gameStats);
+
   attackEnemy(item);
 
   renderGameStats();
+  renderDefeatedToday();
+  renderCompanion();
   checkAchievements(prevBadges);
   updateDailyMission('tasksDone');
   if (item.priority === 'high') updateDailyMission('urgentDone');
@@ -747,7 +978,7 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById(`view-${btn.dataset.view}`).classList.add('active');
-    if (btn.dataset.view === 'record') { renderTodayTasks(); renderDailyMission(); renderDailyQuest(); renderBattle(); }
+    if (btn.dataset.view === 'record') { renderTodayTasks(); renderDailyMission(); renderDailyQuest(); renderBattle(); renderPomodoro(); renderDefeatedToday(); renderCompanion(); }
     if (btn.dataset.view === 'history') renderHistory();
     if (btn.dataset.view === 'settings') { renderTrash(); renderStats(); renderMonsterDex(); renderActivityCalendar(); renderThemes(); renderBadges(); renderGameSettings(); }
   });
@@ -991,12 +1222,28 @@ async function transcribeAudio(blob, mimeType) {
   }
 }
 
-// 重複判定用にテキストを正規化（空白・記号・助詞を除去）
+// 同義語マップ（意味が同じ言葉を同一キーに統一して重複判定の精度を上げる）
+const SYNONYMS_MAP = [
+  [/ミルク|みるく/g,                  '牛乳'],
+  [/パソコン|ぱそこん|コンピューター/g, 'pc'],
+  [/スマホ|すまほ/g,                   'スマートフォン'],
+  [/ごはん|メシ|めし/g,               'ご飯'],
+  [/ミーティング|みーてぃんぐ|mtg|打合せ|打合/g, '会議'],
+  [/メール|eメール/g,                  'メール'],
+  [/テレビ|てれび/g,                   'tv'],
+  [/洗濯もの|せんたくもの/g,           '洗濯物'],
+  [/コーヒー|こーひー/g,               'コーヒー'],
+  [/ビール|びーる/g,                   'ビール'],
+];
+
+// 重複判定用にテキストを正規化（空白・記号・助詞を除去＋同義語統一）
 function normalizeForMerge(text) {
-  return String(text || '')
+  let t = String(text || '')
     .toLowerCase()
     .replace(/[\s、。・,.!！?？「」『』【】（）()〜~ー-]/g, '')
     .replace(/[をがはにへでのともやねよ]/g, '');
+  for (const [pat, rep] of SYNONYMS_MAP) t = t.replace(pat, rep);
+  return t;
 }
 
 // 新メモの項目を、既存の未完了項目と照合してまとめる（同カテゴリで正規化一致なら統合）
@@ -1353,9 +1600,13 @@ function renderTodayTasks() {
     const pri = t.priority === 'high' ? '<span class="priority-badge high">急</span>'
       : t.priority === 'medium' ? '<span class="priority-badge medium">中</span>' : '';
     const rep = recurringType(t.text) ? '🔁 ' : '';
+    const decomp = t.cat === 'tasks'
+      ? `<button class="decompose-btn" data-decomp-id="${t.memoId}" data-decomp-cat="${t.cat}" data-decomp-idx="${t.idx}" title="AIでステップに分解">🔪</button>`
+      : '';
     return `<div class="today-task-row">
       <input type="checkbox" data-id="${t.memoId}" data-cat="${t.cat}" data-idx="${t.idx}">
       <span class="today-task-body">${pri}<span class="today-task-text">${rep}${esc(t.text)}</span>${dueLabel}</span>
+      ${decomp}
     </div>`;
   };
   const card = (label, list) => list.length
@@ -1519,6 +1770,12 @@ document.addEventListener('change', (e) => {
 });
 
 document.addEventListener('click', (e) => {
+  const decompBtn = e.target.closest('[data-decomp-id]');
+  if (decompBtn) {
+    handleDecompose(decompBtn.dataset.decompId, decompBtn.dataset.decompCat, Number(decompBtn.dataset.decompIdx));
+    return;
+  }
+
   if (e.target.closest('.ai-save-btn') && pendingChatSave) {
     const { question, answer } = pendingChatSave;
     const memo = {
@@ -2104,8 +2361,11 @@ applyTheme(currentTheme);
 renderTodayTasks();
 renderGameStats();
 renderDailyMission();
+renderPomodoro();
 renderDailyQuest();
 renderBattle();
+renderCompanion();
+renderDefeatedToday();
 checkDueNotifications();
 
 // ===== 共通 =====
@@ -2217,6 +2477,58 @@ function stopTimer() {
       if (bg) bg.style.opacity = 0;
     }
     swipeEl = null; swipeId = null; axisLocked = false;
+  });
+}
+
+// ===== ホームのタスク：右スワイプで完了 =====
+{
+  let swEl = null, swCb = null, swStartX = 0, swStartY = 0, swAxisLocked = false;
+  const SW_COMPLETE_THRESHOLD = 72;
+
+  todayTasksEl.addEventListener('touchstart', (e) => {
+    const row = e.target.closest('.today-task-row');
+    if (!row) return;
+    const cb = row.querySelector('input[type="checkbox"]');
+    if (!cb || cb.checked) return;
+    swEl = row;
+    swCb = cb;
+    swStartX = e.touches[0].clientX;
+    swStartY = e.touches[0].clientY;
+    swAxisLocked = false;
+  }, { passive: true });
+
+  todayTasksEl.addEventListener('touchmove', (e) => {
+    if (!swEl) return;
+    const dx = e.touches[0].clientX - swStartX;
+    const dy = e.touches[0].clientY - swStartY;
+    if (!swAxisLocked) {
+      if (Math.abs(dy) > Math.abs(dx)) { swEl = null; return; }
+      swAxisLocked = true;
+    }
+    if (dx <= 0) return;
+    e.preventDefault();
+    const tx = Math.min(dx, SW_COMPLETE_THRESHOLD * 1.6);
+    const alpha = Math.min(tx / SW_COMPLETE_THRESHOLD, 1) * 0.25;
+    swEl.style.cssText = `transform:translateX(${tx}px);transition:none;background:rgba(74,222,128,${alpha})`;
+  }, { passive: false });
+
+  todayTasksEl.addEventListener('touchend', () => {
+    if (!swEl) return;
+    const match = swEl.style.transform.match(/[\d.]+/);
+    const dx = match ? parseFloat(match[0]) : 0;
+    if (dx >= SW_COMPLETE_THRESHOLD) {
+      swEl.style.cssText = 'transform:translateX(110%);transition:transform 0.22s ease;background:rgba(74,222,128,0.2)';
+      const cb = swCb;
+      setTimeout(() => {
+        if (!cb.checked) {
+          cb.checked = true;
+          cb.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }, 160);
+    } else {
+      swEl.style.cssText = 'transform:translateX(0);transition:transform 0.22s ease';
+    }
+    swEl = null; swCb = null; swAxisLocked = false;
   });
 }
 

@@ -393,6 +393,34 @@ app.post('/api/todoist', async (req, res) => {
   });
 });
 
+// ===== AIタスク分解 =====
+
+app.post('/api/decompose', async (req, res) => {
+  const task = ((req.body && req.body.task) || '').trim();
+  if (!task) return res.status(400).json({ error: 'タスクが必要です' });
+
+  try {
+    const { text } = await callAI(
+      `以下のタスクを3〜5個の具体的なステップに分解してください。JSONの配列のみを返してください。
+
+タスク: "${task}"
+
+例: ["ステップ1を実行する","ステップ2を確認する","ステップ3を完了する"]
+
+JSONの配列のみ、他のテキストは不要です。`,
+      400
+    );
+
+    const match = text.match(/\[[\s\S]*?\]/);
+    const steps = JSON.parse(match ? match[0] : text);
+    if (!Array.isArray(steps)) throw new Error('invalid');
+    res.json({ steps: steps.map((s) => String(s).trim()).filter((s) => s).slice(0, 6) });
+  } catch (err) {
+    console.error('[DECOMPOSE ERROR]', err);
+    res.status(500).json({ error: 'タスクを分解できませんでした' });
+  }
+});
+
 // ===== 週間まとめ =====
 
 app.post('/api/weekly', async (req, res) => {
