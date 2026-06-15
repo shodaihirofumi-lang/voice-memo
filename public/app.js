@@ -991,6 +991,48 @@ async function transcribeAudio(blob, mimeType) {
   }
 }
 
+// 重複判定用にテキストを正規化（空白・記号・助詞を除去）
+function normalizeForMerge(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/[\s、。・,.!！?？「」『』【】（）()〜~ー-]/g, '')
+    .replace(/[をがはにへでのともやねよ]/g, '');
+}
+
+// 新メモの項目を、既存の未完了項目と照合してまとめる（同カテゴリで正規化一致なら統合）
+function mergeDuplicates(newMemo) {
+  const newCats = (newMemo.organized && newMemo.organized.categories) || {};
+  const rank = { high: 2, medium: 1 };
+  let merged = 0;
+  for (const key of Object.keys(newCats)) {
+    const keep = [];
+    for (const item of newCats[key]) {
+      const norm = normalizeForMerge(item.text);
+      let found = null;
+      if (norm.length >= 2) {
+        for (const m of memos) {
+          const exItems = ((m.organized && m.organized.categories) || {})[key] || [];
+          for (const ex of exItems) {
+            if (!ex.done && normalizeForMerge(ex.text) === norm) { found = ex; break; }
+          }
+          if (found) break;
+        }
+      }
+      if (found) {
+        // 既存の項目に新しい情報（より近い期限・高い優先度）を反映
+        if (item.due && (!found.due || item.due < found.due)) found.due = item.due;
+        if ((rank[item.priority] || 0) > (rank[found.priority] || 0)) found.priority = item.priority;
+        merged++;
+      } else {
+        keep.push(item);
+      }
+    }
+    if (keep.length) newCats[key] = keep;
+    else delete newCats[key];
+  }
+  return merged;
+}
+
 async function organize(text) {
   try {
     const response = await fetch('/api/organize', {
@@ -1008,6 +1050,8 @@ async function organize(text) {
       transcription: data.transcription,
       organized: data.organized,
     };
+    // 同じような項目は既存とまとめる（重複を増やさない）
+    const mergedCount = mergeDuplicates(memo);
     memos.unshift(memo);
     saveMemos(memos);
 
@@ -1020,7 +1064,10 @@ async function organize(text) {
     liveEl.classList.add('hidden');
     currentResultId = memo.id;
     renderResult();
+    renderTodayTasks();
+    renderDailyQuest();
     setStatus('完了！保存しました', 'success');
+    if (mergedCount > 0) setTimeout(() => toast(`似た項目 ${mergedCount}件を既存のメモとまとめました`), 700);
     return true;
   } catch (err) {
     setStatus(`エラー: ${err.message}`, 'error');
