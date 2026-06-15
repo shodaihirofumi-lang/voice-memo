@@ -447,7 +447,9 @@ async function handleDecompose(memoId, cat, idx) {
     if (!steps || steps.length === 0) { toast('分解できませんでした'); return; }
 
     const cats = memo.organized.categories;
-    const newItems = steps.map((s) => ({ text: s, due: item.due, done: false, priority: item.priority }));
+    const groupId = 'dg' + Date.now();
+    const newItems = steps.map((s) => ({ text: s, due: item.due, done: false, priority: item.priority, _dg: groupId }));
+    decompGroups[groupId] = { memoId, cat, original: { ...item } };
     cats[cat].splice(idx, 1, ...newItems);
     saveMemos(memos);
     renderTodayTasks();
@@ -458,6 +460,28 @@ async function handleDecompose(memoId, cat, idx) {
     toast(`分解エラー: ${err.message}`);
     if (btn) { btn.disabled = false; btn.textContent = '🔪分解'; }
   }
+}
+
+function undoDecompose(groupId) {
+  const h = decompGroups[groupId];
+  if (!h) return;
+  const memo = findMemo(h.memoId);
+  if (!memo) return;
+  const arr = (((memo.organized || {}).categories || {})[h.cat]);
+  if (!arr) return;
+  // 同じgroupIdを持つ項目を全て探して元の1項目に差し替え
+  const first = arr.findIndex((it) => it._dg === groupId);
+  if (first === -1) return;
+  const count = arr.filter((it) => it._dg === groupId).length;
+  const original = { ...h.original };
+  delete original._dg;
+  arr.splice(first, count, original);
+  delete decompGroups[groupId];
+  saveMemos(memos);
+  renderTodayTasks();
+  renderDailyQuest();
+  renderResult();
+  toast('↩️ 元のタスクに戻しました');
 }
 
 function renderBattle() {
@@ -947,6 +971,7 @@ let currentResultId = null;
 let appendTargetId = null;
 let pendingChatSave = null;
 let pendingWeeklySave = null;
+const decompGroups = {}; // groupId → { memoId, cat, original } — 分解のundo用（メモリ内のみ）
 
 function findMemo(id) {
   return memos.find((m) => m.id === id);
@@ -1589,6 +1614,7 @@ function renderTodayTasks() {
     if (a.due && b.due) return a.due.localeCompare(b.due);
     return (b.ts || 0) - (a.ts || 0);
   };
+  const seenDgGroups = new Set();
   const rowHtml = (t) => {
     let dueLabel = '';
     if (t.due) {
@@ -1600,13 +1626,20 @@ function renderTodayTasks() {
     const pri = t.priority === 'high' ? '<span class="priority-badge high">急</span>'
       : t.priority === 'medium' ? '<span class="priority-badge medium">中</span>' : '';
     const rep = recurringType(t.text) ? '🔁 ' : '';
-    const decomp = t.cat === 'tasks'
-      ? `<button class="decompose-btn" data-decomp-id="${t.memoId}" data-decomp-cat="${t.cat}" data-decomp-idx="${t.idx}" title="AIでステップに分解">🔪</button>`
-      : '';
+    // 分解済み（_dg付き）→グループの先頭アイテムにのみ↩️、未分解→🔪
+    let actionBtn = '';
+    if (t.cat === 'tasks') {
+      if (t._dg && decompGroups[t._dg] && !seenDgGroups.has(t._dg)) {
+        seenDgGroups.add(t._dg);
+        actionBtn = `<button class="decompose-btn" data-undo-dg="${t._dg}" title="元のタスクに戻す">↩️</button>`;
+      } else if (!t._dg) {
+        actionBtn = `<button class="decompose-btn" data-decomp-id="${t.memoId}" data-decomp-cat="${t.cat}" data-decomp-idx="${t.idx}" title="AIでステップに分解">🔪</button>`;
+      }
+    }
     return `<div class="today-task-row">
       <input type="checkbox" data-id="${t.memoId}" data-cat="${t.cat}" data-idx="${t.idx}">
       <span class="today-task-body">${pri}<span class="today-task-text">${rep}${esc(t.text)}</span>${dueLabel}</span>
-      ${decomp}
+      ${actionBtn}
     </div>`;
   };
   const card = (label, list) => list.length
@@ -1770,6 +1803,12 @@ document.addEventListener('change', (e) => {
 });
 
 document.addEventListener('click', (e) => {
+  const undoDgBtn = e.target.closest('[data-undo-dg]');
+  if (undoDgBtn) {
+    undoDecompose(undoDgBtn.dataset.undoDg);
+    return;
+  }
+
   const decompBtn = e.target.closest('[data-decomp-id]');
   if (decompBtn) {
     handleDecompose(decompBtn.dataset.decompId, decompBtn.dataset.decompCat, Number(decompBtn.dataset.decompIdx));
