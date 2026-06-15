@@ -1719,6 +1719,178 @@ header {
   line-height: 1.5;
 }
 
+/* ===== レベルアップ全画面演出 ===== */
+.levelup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: radial-gradient(ellipse at 50% 40%, rgba(251,191,36,0.22) 0%, rgba(9,9,11,0.96) 70%);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: lvOverlayIn 0.45s cubic-bezier(0.22,1,0.36,1);
+  cursor: pointer;
+}
+@keyframes lvOverlayIn {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+.levelup-rays {
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(from 0deg at 50% 50%, transparent 0deg, rgba(251,191,36,0.12) 10deg, transparent 20deg, rgba(251,191,36,0.07) 30deg, transparent 45deg, rgba(251,191,36,0.1) 55deg, transparent 70deg, rgba(251,191,36,0.08) 80deg, transparent 100deg, rgba(251,191,36,0.11) 110deg, transparent 130deg, rgba(251,191,36,0.09) 145deg, transparent 165deg, rgba(251,191,36,0.07) 175deg, transparent 195deg, rgba(251,191,36,0.12) 210deg, transparent 230deg, rgba(251,191,36,0.08) 245deg, transparent 265deg, rgba(251,191,36,0.1) 275deg, transparent 295deg, rgba(251,191,36,0.09) 310deg, transparent 325deg, rgba(251,191,36,0.07) 340deg, transparent 360deg);
+  animation: lvRaysSpin 6s linear infinite;
+  pointer-events: none;
+}
+@keyframes lvRaysSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.levelup-label {
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  color: #fbbf24;
+  text-shadow: 0 0 24px rgba(251,191,36,0.8);
+  animation: lvBounce 0.6s 0.1s cubic-bezier(0.22,1,0.36,1) both;
+  position: relative;
+}
+.levelup-num {
+  font-size: 5.5rem;
+  font-weight: 900;
+  line-height: 1;
+  color: #fbbf24;
+  text-shadow: 0 0 60px rgba(251,191,36,0.9), 0 4px 32px rgba(0,0,0,0.8);
+  animation: lvBounce 0.55s 0.2s cubic-bezier(0.22,1,0.36,1) both;
+  position: relative;
+}
+.levelup-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 2px 20px rgba(251,191,36,0.6);
+  animation: lvBounce 0.55s 0.35s cubic-bezier(0.22,1,0.36,1) both;
+  position: relative;
+}
+.levelup-hint {
+  font-size: 0.74rem;
+  color: rgba(255,255,255,0.4);
+  margin-top: 1rem;
+  position: relative;
+  animation: lvFadeIn 0.6s 1.5s both;
+}
+@keyframes lvBounce {
+  0%   { opacity: 0; transform: scale(0.4); }
+  70%  { transform: scale(1.12); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes lvFadeIn {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* ===== 今日の3フォーカス ===== */
+.focus-card {
+  border: 1px solid rgba(251,191,36,0.35);
+  background: linear-gradient(135deg, rgba(251,191,36,0.08), rgba(255,255,255,0.01));
+}
+.focus-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.65rem;
+}
+.focus-badge {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #fbbf24;
+  background: rgba(251,191,36,0.14);
+  border-radius: 7px;
+  padding: 2px 8px;
+}
+.focus-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 0.42rem;
+  margin-bottom: 0.75rem;
+}
+.focus-slot {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.48rem 0.7rem;
+  font-size: 0.88rem;
+  color: var(--text);
+  min-height: 38px;
+}
+.focus-slot.empty {
+  color: var(--text-3);
+  font-size: 0.78rem;
+  font-style: italic;
+}
+.focus-slot.done {
+  opacity: 0.55;
+  text-decoration: line-through;
+  border-color: rgba(74,222,128,0.25);
+}
+.focus-slot-num {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #fbbf24;
+  width: 1.2rem;
+  flex-shrink: 0;
+  text-align: center;
+}
+.focus-slot-text { flex: 1; min-width: 0; word-break: break-word; }
+.focus-slot-remove {
+  background: none;
+  border: none;
+  font-size: 0.84rem;
+  color: var(--text-3);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.focus-slot-remove:hover { color: var(--red-soft); }
+.focus-ai-btn {
+  width: 100%;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #fbbf24;
+  background: rgba(251,191,36,0.1);
+  border: 1px solid rgba(251,191,36,0.3);
+  border-radius: 10px;
+  padding: 0.5rem 0;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.focus-ai-btn:hover { background: rgba(251,191,36,0.18); border-color: rgba(251,191,36,0.5); }
+.focus-ai-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* ⭐ フォーカス星ボタン（タスク行に表示） */
+.focus-star-btn {
+  background: none;
+  border: none;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  flex-shrink: 0;
+  color: var(--text-3);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s;
+}
+.focus-star-btn.starred { color: #fbbf24; }
+.focus-star-btn:hover { transform: scale(1.2); }
+
 /* ===== スマホ ===== */
 @media (max-width: 480px) {
   html { font-size: 17px; }

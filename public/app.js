@@ -42,6 +42,7 @@ const CATEGORY_CONFIG = {
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
 const GAME_KEY = 'voiceMemoGame.v1';
+const FOCUS_KEY = 'voiceMemoFocus.v1';
 const LEVELS = [
   { level: 1,  xp: 0,      title: '見習いメモ屋' },
   { level: 2,  xp: 100,    title: 'タスク見習い' },
@@ -168,6 +169,17 @@ function prevDayISO(iso) {
 let gameStats = loadGameStats();
 let comboCount = 0, comboTimer = null, comboPopupTimer = null;
 
+// フォーカスタスク（今日の3フォーカス）
+let focusTasks = (() => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(FOCUS_KEY));
+    if (Array.isArray(saved)) return saved;
+  } catch {}
+  return [];
+})();
+function saveFocusTasks() { localStorage.setItem(FOCUS_KEY, JSON.stringify(focusTasks)); }
+let focusAllDoneCelebrated = false;
+
 // ===== 効果音（Web Audioで生成） =====
 let soundEnabled = localStorage.getItem('voiceMemoSound') !== '0';
 let hapticEnabled = localStorage.getItem('voiceMemoHaptic') !== '0';
@@ -274,6 +286,134 @@ let pomodoroRunning = false;
 let pomodoroElapsed = 0;
 const POMODORO_DURATION = 25 * 60;
 let pomodoroInterval = null;
+
+// ===== 今日の3フォーカス =====
+function isFocused(text) {
+  return focusTasks.some((f) => f.text === text);
+}
+
+function toggleFocus(memoId, cat, text) {
+  const idx = focusTasks.findIndex((f) => f.text === text);
+  if (idx !== -1) {
+    focusTasks.splice(idx, 1);
+    saveFocusTasks();
+    focusAllDoneCelebrated = false;
+    renderFocusCard();
+    renderTodayTasks();
+    return;
+  }
+  if (focusTasks.length >= 3) {
+    toast('フォーカスは3件まで！');
+    return;
+  }
+  focusTasks.push({ memoId, cat, text });
+  saveFocusTasks();
+  renderFocusCard();
+  renderTodayTasks();
+}
+
+function renderFocusCard() {
+  const el = document.getElementById('focusCard');
+  if (!el) return;
+
+  // フォーカス内のタスクを実際のmemoデータと照合して done 状態を確認
+  const slots = focusTasks.map((f) => {
+    const memo = findMemo(f.memoId);
+    const cats = (memo && memo.organized && memo.organized.categories) || {};
+    const items = cats[f.cat] || [];
+    const item = items.find((it) => it.text === f.text);
+    return { ...f, done: item ? item.done : false };
+  });
+
+  // 全完了チェック
+  if (slots.length === 3 && slots.every((s) => s.done) && !focusAllDoneCelebrated) {
+    focusAllDoneCelebrated = true;
+    setTimeout(() => {
+      showConfetti(false);
+      toast('🎉 今日の3フォーカス全達成！素晴らしい！');
+    }, 300);
+  }
+  if (!slots.every((s) => s.done)) focusAllDoneCelebrated = false;
+
+  const slotHtml = (s, i) => s
+    ? `<div class="focus-slot${s.done ? ' done' : ''}">
+        <span class="focus-slot-num">${i + 1}</span>
+        <span class="focus-slot-text">${esc(s.text)}</span>
+        <button class="focus-slot-remove" data-focus-remove="${i}" title="外す">✕</button>
+      </div>`
+    : `<div class="focus-slot empty"><span class="focus-slot-num">${i + 1}</span><span class="focus-slot-text">タスク行の ⭐ で追加</span></div>`;
+
+  const slotsArr = [slots[0] || null, slots[1] || null, slots[2] || null];
+  el.innerHTML = `<div class="glass-card focus-card">
+    <div class="focus-head">
+      <span class="card-label">⭐ 今日の3フォーカス</span>
+      <span class="focus-badge">${slots.length}/3</span>
+    </div>
+    <div class="focus-slots">${slotsArr.map(slotHtml).join('')}</div>
+    <button class="focus-ai-btn" id="focusAiBtn">🤖 AIに今日のプランを作ってもらう</button>
+  </div>`;
+
+  document.getElementById('focusAiBtn')?.addEventListener('click', showAIPlan);
+  el.querySelectorAll('[data-focus-remove]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const i = Number(btn.dataset.focusRemove);
+      focusTasks.splice(i, 1);
+      saveFocusTasks();
+      focusAllDoneCelebrated = false;
+      renderFocusCard();
+      renderTodayTasks();
+    });
+  });
+}
+
+async function showAIPlan() {
+  const btn = document.getElementById('focusAiBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '🤖 考え中...'; }
+
+  // 未完了タスクを収集
+  const pending = [];
+  const today = todayISO();
+  for (const memo of memos) {
+    const cats = (memo.organized && memo.organized.categories) || {};
+    for (const [cat, items] of Object.entries(cats)) {
+      for (const item of items) {
+        if (!item.done) {
+          pending.push({ text: item.text, due: item.due || null, cat, memoId: memo.id,
+            urgent: item.due && item.due <= today, priority: item.priority || null });
+        }
+      }
+    }
+  }
+
+  if (pending.length === 0) {
+    toast('未完了タスクがありません');
+    if (btn) { btn.disabled = false; btn.textContent = '🤖 AIに今日のプランを作ってもらう'; }
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tasks: pending.slice(0, 40) }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'エラー');
+
+    focusTasks = data.picks.map((text) => {
+      const found = pending.find((p) => p.text === text);
+      return found ? { memoId: found.memoId, cat: found.cat, text } : null;
+    }).filter(Boolean).slice(0, 3);
+    saveFocusTasks();
+    focusAllDoneCelebrated = false;
+    renderFocusCard();
+    renderTodayTasks();
+    if (data.advice) toast(`💡 ${data.advice}`);
+  } catch (err) {
+    toast(`AIプラン失敗: ${err.message}`);
+    if (btn) { btn.disabled = false; btn.textContent = '🤖 AIに今日のプランを作ってもらう'; }
+  }
+}
 
 function renderPomodoro() {
   const el = document.getElementById('pomodoroCard');
@@ -716,8 +856,29 @@ function showXpPopup(xp, isUrgent, leveledUp, bonus) {
   el.addEventListener('animationend', () => el.remove(), { once: true });
   if (leveledUp) {
     const { cur } = getLevelInfo(gameStats.xp);
-    setTimeout(() => toast(`🎉 レベルアップ！ ${cur.title} Lv.${cur.level} になった！`), 400);
+    setTimeout(() => showLevelUpScreen(cur.level, cur.title), 600);
   }
+}
+
+function showLevelUpScreen(level, title) {
+  const existing = document.querySelector('.levelup-overlay');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.className = 'levelup-overlay';
+  el.innerHTML = `
+    <div class="levelup-rays"></div>
+    <div class="levelup-label">LEVEL UP!</div>
+    <div class="levelup-num">${level}</div>
+    <div class="levelup-title">${esc(title)}</div>
+    <div class="levelup-hint">タップで閉じる</div>`;
+  document.body.appendChild(el);
+  showConfetti(true);
+  const dismiss = () => {
+    el.style.animation = 'lvOverlayIn 0.3s ease reverse forwards';
+    setTimeout(() => el.remove(), 300);
+  };
+  el.addEventListener('click', dismiss, { once: true });
+  setTimeout(dismiss, 4000);
 }
 
 function showComboPopup(count) {
@@ -1003,7 +1164,7 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById(`view-${btn.dataset.view}`).classList.add('active');
-    if (btn.dataset.view === 'record') { renderTodayTasks(); renderDailyMission(); renderDailyQuest(); renderBattle(); renderPomodoro(); renderDefeatedToday(); renderCompanion(); }
+    if (btn.dataset.view === 'record') { renderTodayTasks(); renderDailyMission(); renderFocusCard(); renderDailyQuest(); renderBattle(); renderPomodoro(); renderDefeatedToday(); renderCompanion(); }
     if (btn.dataset.view === 'history') renderHistory();
     if (btn.dataset.view === 'settings') { renderTrash(); renderStats(); renderMonsterDex(); renderActivityCalendar(); renderThemes(); renderBadges(); renderGameSettings(); }
   });
@@ -1636,10 +1797,12 @@ function renderTodayTasks() {
         actionBtn = `<button class="decompose-btn" data-decomp-id="${t.memoId}" data-decomp-cat="${t.cat}" data-decomp-idx="${t.idx}" title="AIでステップに分解">🔪</button>`;
       }
     }
+    const starred = isFocused(t.text);
+    const starBtn = `<button class="focus-star-btn${starred ? ' starred' : ''}" data-focus-id="${t.memoId}" data-focus-cat="${t.cat}" data-focus-text="${esc(t.text)}" title="フォーカスに追加">${starred ? '⭐' : '☆'}</button>`;
     return `<div class="today-task-row">
       <input type="checkbox" data-id="${t.memoId}" data-cat="${t.cat}" data-idx="${t.idx}">
       <span class="today-task-body">${pri}<span class="today-task-text">${rep}${esc(t.text)}</span>${dueLabel}</span>
-      ${actionBtn}
+      ${starBtn}${actionBtn}
     </div>`;
   };
   const card = (label, list) => list.length
@@ -1803,6 +1966,12 @@ document.addEventListener('change', (e) => {
 });
 
 document.addEventListener('click', (e) => {
+  const starBtn = e.target.closest('.focus-star-btn');
+  if (starBtn) {
+    toggleFocus(starBtn.dataset.focusId, starBtn.dataset.focusCat, starBtn.dataset.focusText);
+    return;
+  }
+
   const undoDgBtn = e.target.closest('[data-undo-dg]');
   if (undoDgBtn) {
     undoDecompose(undoDgBtn.dataset.undoDg);
@@ -2400,6 +2569,7 @@ applyTheme(currentTheme);
 renderTodayTasks();
 renderGameStats();
 renderDailyMission();
+renderFocusCard();
 renderPomodoro();
 renderDailyQuest();
 renderBattle();

@@ -393,6 +393,46 @@ app.post('/api/todoist', async (req, res) => {
   });
 });
 
+// ===== AIプラン提案 =====
+
+app.post('/api/plan', async (req, res) => {
+  const tasks = (req.body && Array.isArray(req.body.tasks)) ? req.body.tasks : [];
+  if (tasks.length === 0) return res.status(400).json({ error: 'タスクが必要です' });
+
+  const taskList = tasks.map((t, i) => {
+    const parts = [`${i + 1}. ${t.text}`];
+    if (t.due) parts.push(`期限:${t.due}`);
+    if (t.urgent) parts.push('【期限切れ/今日】');
+    if (t.priority === 'high') parts.push('[急]');
+    if (t.cat) parts.push(`[${t.cat}]`);
+    return parts.join(' ');
+  }).join('\n');
+
+  try {
+    const { text } = await callAI(
+      `以下のタスクリストを見て、今日やるべき最重要タスクを3件選んでください。
+期限切れ・今日期限・[急]のタスクを優先し、次にtasks/remindersを優先してください。
+
+タスクリスト:
+${taskList}
+
+必ず以下のJSON形式のみで返してください:
+{"picks":["タスクの文章をそのまま","タスク2","タスク3"],"advice":"一言アドバイス（20文字以内）"}
+
+JSONのみ、他のテキストは不要です。`,
+      500
+    );
+
+    const match = text.match(/\{[\s\S]*?\}/);
+    const parsed = JSON.parse(match ? match[0] : text);
+    if (!Array.isArray(parsed.picks)) throw new Error('invalid');
+    res.json({ picks: parsed.picks.slice(0, 3), advice: parsed.advice || '' });
+  } catch (err) {
+    console.error('[PLAN ERROR]', err);
+    res.status(500).json({ error: 'プランを作成できませんでした' });
+  }
+});
+
 // ===== AIタスク分解 =====
 
 app.post('/api/decompose', async (req, res) => {
