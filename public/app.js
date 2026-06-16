@@ -1407,6 +1407,7 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
     document.getElementById(`view-${btn.dataset.view}`).classList.add('active');
     if (btn.dataset.view === 'record') { renderTodayTasks(); renderDailyMission(); renderFocusCard(); renderDailyQuest(); renderBattle(); renderPomodoro(); renderDefeatedToday(); renderCompanion(); }
     if (btn.dataset.view === 'history') renderHistory();
+    if (btn.dataset.view === 'notes') renderNotesView();
     if (btn.dataset.view === 'settings') { renderTrash(); renderStats(); renderMonsterDex(); renderActivityCalendar(); renderThemes(); renderBadges(); renderGameSettings(); }
   });
 });
@@ -1905,6 +1906,63 @@ function renderResult() {
 function rerenderAll() {
   renderResult();
   renderHistory();
+  renderNotesView();
+}
+
+function renderNotesView() {
+  const el = document.getElementById('notesList');
+  const emptyEl = document.getElementById('notesEmpty');
+  if (!el) return;
+  const relevant = memos.filter((m) => {
+    const cats = (m.organized && m.organized.categories) || {};
+    return (cats.notes || []).length > 0 || (cats.ideas || []).length > 0 || !!(m.organized && m.organized.summary);
+  }).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  if (relevant.length === 0) {
+    el.innerHTML = '';
+    emptyEl.classList.remove('hidden');
+    return;
+  }
+  emptyEl.classList.add('hidden');
+  const byDay = {};
+  relevant.forEach((m) => {
+    const d = new Date(m.ts || 0);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    (byDay[key] = byDay[key] || []).push(m);
+  });
+  const DOW = ['日','月','火','水','木','金','土'];
+  let html = '';
+  Object.keys(byDay).sort().reverse().forEach((day) => {
+    const [y, mo, d] = day.split('-');
+    const dt = new Date(Number(y), Number(mo)-1, Number(d));
+    html += `<div class="notes-day-group"><div class="notes-day-label">${mo}/${d}（${DOW[dt.getDay()]}）</div>`;
+    byDay[day].forEach((m) => {
+      const cats = (m.organized && m.organized.categories) || {};
+      const notes = cats.notes || [];
+      const ideas = cats.ideas || [];
+      const summary = (m.organized && m.organized.summary) || '';
+      const title = (m.organized && m.organized.title) || '無題';
+      const t = new Date(m.ts || 0);
+      const timeStr = `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+      let body = '';
+      if (summary) body += `<p class="notes-summary">${esc(summary)}</p>`;
+      if (ideas.length) {
+        body += `<div class="notes-section-label">💡 アイデア</div><ul class="notes-list">`;
+        ideas.forEach((it) => { body += `<li>${esc(it.text)}</li>`; });
+        body += `</ul>`;
+      }
+      if (notes.length) {
+        body += `<ul class="notes-list notes-plain">`;
+        notes.forEach((it) => { body += `<li>${esc(it.text)}</li>`; });
+        body += `</ul>`;
+      }
+      html += `<div class="notes-card glass-card">
+        <div class="notes-card-head"><span class="notes-card-title">${esc(title)}</span><span class="notes-card-time">${timeStr}</span></div>
+        ${body}
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  el.innerHTML = html;
 }
 
 function memoSearchText(m) {
