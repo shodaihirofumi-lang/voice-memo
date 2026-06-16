@@ -1067,6 +1067,19 @@ header {
 }
 .today-task-body { display: flex; align-items: baseline; gap: 0.35rem; flex: 1; flex-wrap: wrap; }
 .today-task-text { font-size: 0.9rem; word-break: break-word; }
+.edit-tap { cursor: text; border-radius: 3px; }
+.edit-tap:hover { text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
+.item-edit-input {
+  flex: 1;
+  background: var(--surface-2);
+  border: 1.5px solid var(--accent);
+  border-radius: 8px;
+  color: var(--text-1);
+  font-size: 0.9rem;
+  padding: 4px 8px;
+  outline: none;
+  min-width: 0;
+}
 .today-task-due { font-size: 0.72rem; color: var(--text-3); white-space: nowrap; }
 .today-task-due.overdue { color: var(--red-soft); font-weight: 600; }
 .today-task-due.today-due { color: #fbbf24; font-weight: 600; }

@@ -831,6 +831,39 @@ function undoDecompose(groupId, memoId, cat) {
   toast('↩️ 元のタスクに戻しました');
 }
 
+function startItemEdit(memoId, cat, idx) {
+  const memo = findMemo(memoId);
+  const item = ((memo?.organized?.categories || {})[cat] || [])[idx];
+  if (!item) return;
+  const row = document.querySelector(`.edit-tap[data-edit-id="${memoId}"][data-edit-cat="${cat}"][data-edit-idx="${idx}"]`)?.closest('.today-task-row');
+  if (!row) return;
+  row.innerHTML = `
+    <input class="item-edit-input" type="text" value="${esc(item.text)}">
+    <button class="pill-btn primary item-edit-ok">保存</button>
+    <button class="pill-btn item-edit-ng">取消</button>
+  `;
+  const input = row.querySelector('.item-edit-input');
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+  const save = () => {
+    const newText = input.value.trim();
+    if (newText && newText !== item.text) {
+      item.text = newText;
+      saveMemos(memos);
+      toast('✏️ 更新しました');
+    }
+    renderTodayTasks();
+    renderResult();
+  };
+  const cancel = () => renderTodayTasks();
+  input.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') { ev.preventDefault(); save(); }
+    if (ev.key === 'Escape') cancel();
+  });
+  row.querySelector('.item-edit-ok').addEventListener('click', save);
+  row.querySelector('.item-edit-ng').addEventListener('click', cancel);
+}
+
 function renderBattle() {
   const el = document.getElementById('bossCard');
   if (!el) return;
@@ -2017,7 +2050,7 @@ function renderTodayTasks() {
     const delBtn = `<button class="item-del-btn" data-idel-id="${t.memoId}" data-idel-cat="${t.cat}" data-idel-idx="${t.idx}" title="削除">✕</button>`;
     return `<div class="today-task-row">
       <input type="checkbox" data-id="${t.memoId}" data-cat="${t.cat}" data-idx="${t.idx}">
-      <span class="today-task-body">${pri}<span class="today-task-text">${rep}${esc(t.text)}</span>${dueLabel}</span>
+      <span class="today-task-body">${pri}<span class="today-task-text edit-tap" data-edit-id="${t.memoId}" data-edit-cat="${t.cat}" data-edit-idx="${t.idx}">${rep}${esc(t.text)}</span>${dueLabel}</span>
       ${wsBtn}${starBtn}${actionBtn}${delBtn}
     </div>`;
   };
@@ -2246,6 +2279,12 @@ document.addEventListener('click', (e) => {
   const starBtn = e.target.closest('.focus-star-btn');
   if (starBtn) {
     toggleFocus(starBtn.dataset.focusId, starBtn.dataset.focusCat, starBtn.dataset.focusText);
+    return;
+  }
+
+  const editTap = e.target.closest('.edit-tap[data-edit-id]');
+  if (editTap) {
+    startItemEdit(editTap.dataset.editId, editTap.dataset.editCat, Number(editTap.dataset.editIdx));
     return;
   }
 
