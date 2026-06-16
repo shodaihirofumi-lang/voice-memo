@@ -184,6 +184,83 @@ let focusAllDoneCelebrated = false;
 let soundEnabled = localStorage.getItem('voiceMemoSound') !== '0';
 let hapticEnabled = localStorage.getItem('voiceMemoHaptic') !== '0';
 let sfxCtx = null;
+
+// ===== 集中BGM =====
+const BGM_KEY = 'voiceMemoBGM';
+const BGM_TYPES = [
+  { id: 'none',  label: 'なし' },
+  { id: 'white', label: 'ホワイトノイズ' },
+  { id: 'rain',  label: '雨音' },
+  { id: 'fire',  label: '焚き火' },
+];
+let bgmType = localStorage.getItem(BGM_KEY) || 'none';
+let bgmCtx = null;
+let bgmSources = [];
+let bgmGainNode = null;
+
+function stopBGM() {
+  bgmSources.forEach((n) => { try { n.stop(); } catch {} });
+  bgmSources = [];
+  if (bgmGainNode) { bgmGainNode.disconnect(); bgmGainNode = null; }
+}
+
+function startBGM() {
+  stopBGM();
+  if (bgmType === 'none') return;
+  try {
+    if (!bgmCtx) bgmCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (bgmCtx.state === 'suspended') bgmCtx.resume();
+    const ctx = bgmCtx;
+    bgmGainNode = ctx.createGain();
+    bgmGainNode.gain.value = 0.26;
+    bgmGainNode.connect(ctx.destination);
+
+    const makeNoiseBuf = (type) => {
+      const len = ctx.sampleRate * 3;
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      if (type === 'brown') {
+        let last = 0;
+        for (let i = 0; i < len; i++) {
+          const w = Math.random() * 2 - 1;
+          d[i] = Math.max(-1, Math.min(1, (last + 0.02 * w) / 1.02 * 3.5));
+          last = d[i] / 3.5;
+        }
+      } else {
+        for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      }
+      return buf;
+    };
+
+    if (bgmType === 'white') {
+      const src = ctx.createBufferSource();
+      src.buffer = makeNoiseBuf('white');
+      src.loop = true;
+      src.connect(bgmGainNode);
+      src.start();
+      bgmSources.push(src);
+
+    } else if (bgmType === 'rain') {
+      const src = ctx.createBufferSource();
+      src.buffer = makeNoiseBuf('white');
+      src.loop = true;
+      const f = ctx.createBiquadFilter();
+      f.type = 'bandpass'; f.frequency.value = 1100; f.Q.value = 0.4;
+      src.connect(f); f.connect(bgmGainNode); src.start();
+      bgmSources.push(src);
+
+    } else if (bgmType === 'fire') {
+      const src = ctx.createBufferSource();
+      src.buffer = makeNoiseBuf('brown');
+      src.loop = true;
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass'; f.frequency.value = 600;
+      src.connect(f); f.connect(bgmGainNode); src.start();
+      bgmSources.push(src);
+    }
+  } catch (err) { console.warn('[BGM]', err); }
+}
+
 function getSfxCtx() {
   try {
     if (!sfxCtx) sfxCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -422,6 +499,10 @@ function renderPomodoro() {
   const m = Math.floor(remaining / 60);
   const s = remaining % 60;
   const pct = Math.round((pomodoroElapsed / POMODORO_DURATION) * 100);
+  const bgmLabel = BGM_TYPES.find((t) => t.id === bgmType)?.label || 'なし';
+  const bgmSelector = pomodoroRunning
+    ? (bgmType !== 'none' ? `<p class="pom-bgm-active">♪ ${bgmLabel}</p>` : '')
+    : `<div class="pom-bgm-row">${BGM_TYPES.map((t) => `<button class="pom-bgm-btn${bgmType === t.id ? ' active' : ''}" data-bgm="${t.id}">${t.label}</button>`).join('')}</div>`;
   el.innerHTML = `<div class="glass-card pomodoro-card${pomodoroRunning ? ' running' : ''}">
     <div class="pom-head">
       <span class="card-label">⏱ 集中モード（ポモドーロ）</span>
@@ -429,6 +510,7 @@ function renderPomodoro() {
     </div>
     <div class="pom-timer">${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}</div>
     <div class="pom-bar"><div class="pom-fill" style="width:${pct}%"></div></div>
+    ${bgmSelector}
     <div class="pom-actions">
       ${pomodoroRunning
         ? '<button class="pill-btn" id="pomStopBtn">⏹ 中断</button>'
@@ -440,6 +522,13 @@ function renderPomodoro() {
     document.getElementById('pomStopBtn')?.addEventListener('click', stopPomodoro);
   } else {
     document.getElementById('pomStartBtn')?.addEventListener('click', startPomodoro);
+    el.querySelectorAll('.pom-bgm-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        bgmType = btn.dataset.bgm;
+        localStorage.setItem(BGM_KEY, bgmType);
+        renderPomodoro();
+      });
+    });
   }
 }
 
@@ -453,12 +542,14 @@ function startPomodoro() {
     else renderPomodoro();
   }, 1000);
   renderPomodoro();
+  startBGM();
   haptic([20, 10, 20]);
   toast('⏱ 集中モード開始！25分間タスクに集中しよう！');
 }
 
 function stopPomodoro() {
   clearInterval(pomodoroInterval);
+  stopBGM();
   pomodoroRunning = false;
   pomodoroElapsed = 0;
   renderPomodoro();
@@ -467,6 +558,7 @@ function stopPomodoro() {
 
 function pomodoroComplete() {
   clearInterval(pomodoroInterval);
+  stopBGM();
   pomodoroRunning = false;
   pomodoroElapsed = 0;
 
@@ -559,9 +651,92 @@ function renderDefeatedToday() {
     </div>`
   ).join('');
   el.innerHTML = `<div class="glass-card defeated-card">
-    <h3 class="card-label">⚔️ 今日の討伐記録（${list.length}体・合計${totalXP}XP）</h3>
+    <div class="defeated-head">
+      <h3 class="card-label">⚔️ 今日の討伐記録（${list.length}体・合計${totalXP}XP）</h3>
+      <button class="review-open-btn" id="openReviewBtn">✨ 振り返る</button>
+    </div>
     <div class="defeated-list">${rows}</div>
   </div>`;
+  document.getElementById('openReviewBtn')?.addEventListener('click', showEveningReview);
+}
+
+// ===== 夕方振り返り =====
+async function showEveningReview() {
+  const today = todayISO();
+  const list = (gameStats.todayDefeatedDate === today && gameStats.todayDefeated) || [];
+  if (list.length === 0) { toast('今日はまだタスクを完了していません'); return; }
+
+  const totalXP = list.reduce((s, d) => s + (d.xp || 0), 0);
+  const rows = list.slice().reverse().map((d) =>
+    `<div class="review-task-row">
+      <span>${d.bonus === 'meditation' ? '🧘' : d.bonus === 'work' ? '💼' : '⚔️'}</span>
+      <span class="review-task-text">${esc(d.text)}</span>
+      <span class="review-task-xp">+${d.xp}XP</span>
+    </div>`
+  ).join('');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'review-overlay';
+  overlay.innerHTML = `
+    <div class="review-card">
+      <div class="review-head">
+        <h2 class="review-title">✨ 今日の振り返り</h2>
+        <button class="review-close" id="rvClose">✕</button>
+      </div>
+      <div class="review-stats">
+        <div class="review-stat-item"><span class="review-stat-num">${list.length}</span><span class="review-stat-label">件完了</span></div>
+        <div class="review-stat-sep">·</div>
+        <div class="review-stat-item"><span class="review-stat-num">${totalXP}</span><span class="review-stat-label">XP獲得</span></div>
+      </div>
+      <div class="review-tasks">${rows}</div>
+      <div id="rvPraise" class="review-praise hidden"></div>
+      <div class="review-actions">
+        <button class="pill-btn primary" id="rvPraiseBtn">🤖 AIに褒めてもらう</button>
+        <button class="pill-btn" id="rvClose2">閉じる</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.remove();
+  document.getElementById('rvClose').onclick = close;
+  document.getElementById('rvClose2').onclick = close;
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+  document.getElementById('rvPraiseBtn').onclick = async () => {
+    const btn = document.getElementById('rvPraiseBtn');
+    const praiseEl = document.getElementById('rvPraise');
+    btn.disabled = true;
+    btn.textContent = '🤖 考え中...';
+    praiseEl.classList.remove('hidden');
+    praiseEl.textContent = '…';
+    try {
+      const res = await fetch('/api/praise', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tasks: list.map((d) => d.text), count: list.length, xp: totalXP }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'エラー');
+      praiseEl.textContent = data.message;
+
+      // 振り返りボーナス（1日1回）
+      if (gameStats.todayReviewedDate !== today) {
+        gameStats.todayReviewedDate = today;
+        gameStats.xp += 30;
+        saveGameStats(gameStats);
+        renderGameStats();
+        setTimeout(() => showXpPopup(30, false, false, { type: 'normal' }), 300);
+        toast('✨ 振り返りボーナス +30XP！');
+      }
+
+      btn.textContent = '🤖 もう一度褒めてもらう';
+      btn.disabled = false;
+    } catch {
+      praiseEl.textContent = 'AIへの接続に失敗しました';
+      btn.disabled = false;
+      btn.textContent = '🤖 再試行';
+    }
+  };
 }
 
 // ===== AIタスク分解 =====

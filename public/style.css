@@ -1013,6 +1013,137 @@ header {
 .today-task-due.today-due { color: #fbbf24; font-weight: 600; }
 .today-task-more { font-size: 0.78rem; color: var(--text-3); text-align: right; padding-top: 0.3rem; }
 
+/* ===== 集中BGM ===== */
+.pom-bgm-row {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 0.7rem;
+}
+.pom-bgm-btn {
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.26rem 0.75rem;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.pom-bgm-btn.active {
+  color: #60a5fa;
+  border-color: rgba(96,165,250,0.5);
+  background: rgba(96,165,250,0.1);
+}
+.pom-bgm-active {
+  font-size: 0.72rem;
+  color: #60a5fa;
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+/* ===== 討伐記録ヘッダー ===== */
+.defeated-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.defeated-head .card-label { margin-bottom: 0; }
+.review-open-btn {
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #fbbf24;
+  background: rgba(251,191,36,0.1);
+  border: 1px solid rgba(251,191,36,0.3);
+  border-radius: 999px;
+  padding: 0.22rem 0.7rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.review-open-btn:hover { background: rgba(251,191,36,0.2); }
+
+/* ===== 夕方振り返りオーバーレイ ===== */
+.review-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(9,9,11,0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: flex-end;
+  animation: reviewFadeIn 0.25s ease;
+}
+@keyframes reviewFadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
+.review-card {
+  width: 100%;
+  max-height: 82vh;
+  background: var(--surface);
+  border-radius: 22px 22px 0 0;
+  padding: 1.3rem 1.2rem 2rem;
+  overflow-y: auto;
+  animation: reviewSlideUp 0.32s cubic-bezier(0.22,1,0.36,1);
+}
+@keyframes reviewSlideUp {
+  0%   { transform: translateY(60%); opacity: 0; }
+  100% { transform: translateY(0);   opacity: 1; }
+}
+.review-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.review-title { font-size: 1.1rem; font-weight: 800; color: var(--text); }
+.review-close {
+  background: none; border: none;
+  font-size: 1.1rem; color: var(--text-3);
+  cursor: pointer; padding: 4px;
+  -webkit-tap-highlight-color: transparent;
+}
+.review-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+.review-stat-item { display: flex; align-items: baseline; gap: 0.25rem; }
+.review-stat-num { font-size: 1.6rem; font-weight: 900; color: #fbbf24; line-height: 1; }
+.review-stat-label { font-size: 0.82rem; font-weight: 600; color: var(--text-2); }
+.review-stat-sep { color: var(--text-3); font-size: 1.1rem; }
+.review-tasks { max-height: 28vh; overflow-y: auto; margin-bottom: 0.9rem; }
+.review-task-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.86rem;
+}
+.review-task-row:last-child { border-bottom: none; }
+.review-task-text { flex: 1; color: var(--text-2); word-break: break-word; }
+.review-task-xp { font-size: 0.7rem; font-weight: 700; color: #4ade80; flex-shrink: 0; }
+.review-praise {
+  background: linear-gradient(135deg, rgba(251,191,36,0.1), rgba(192,132,252,0.08));
+  border: 1px solid rgba(251,191,36,0.25);
+  border-radius: 12px;
+  padding: 0.8rem 1rem;
+  font-size: 0.92rem;
+  color: var(--text);
+  line-height: 1.65;
+  margin-bottom: 1rem;
+  white-space: pre-wrap;
+}
+.review-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
 /* ===== タスクセクション：折りたたみ ===== */
 .task-section-head {
   display: flex;

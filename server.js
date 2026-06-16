@@ -393,6 +393,29 @@ app.post('/api/todoist', async (req, res) => {
   });
 });
 
+// ===== 夕方振り返り：AIほめ =====
+
+app.post('/api/praise', async (req, res) => {
+  const { tasks = [], count = 0, xp = 0 } = req.body || {};
+  const list = tasks.slice(0, 20).map((t, i) => `${i + 1}. ${t}`).join('\n');
+  try {
+    const { text } = await callAI(
+      `あなたは熱血コーチです。以下のタスクを今日やり遂げたユーザーを、具体的かつ熱く褒めてください。
+完了タスク数: ${count}件 / 獲得XP: ${xp}XP
+
+完了したタスク:
+${list}
+
+2〜3文で褒めてください。絵文字1〜2個OK。日本語で。`,
+      220
+    );
+    res.json({ message: text.trim() });
+  } catch (err) {
+    console.error('[PRAISE]', err);
+    res.status(500).json({ error: 'エラー' });
+  }
+});
+
 // ===== AIプラン提案 =====
 
 app.post('/api/plan', async (req, res) => {
