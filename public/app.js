@@ -1960,12 +1960,14 @@ function renderTodayTasks() {
   const byCat = { tasks: [], reminders: [], shopping: [], ideas: [], notes: [] };
   let total = 0;
   for (const memo of memos) {
-    if (currentWorkspace !== 'all' && guessWorkspace(memo) !== currentWorkspace) continue;
+    const memoWs = guessWorkspace(memo);
     const cats = (memo.organized && memo.organized.categories) || {};
     for (const key of Object.keys(byCat)) {
       (cats[key] || []).forEach((item, idx) => {
         if (!item.done) {
-          byCat[key].push({ memoId: memo.id, cat: key, idx, text: item.text, due: item.due || null, priority: item.priority || null, ts: memo.ts || 0 });
+          const itemWs = item.workspace || memoWs;
+          if (currentWorkspace !== 'all' && itemWs !== currentWorkspace) return;
+          byCat[key].push({ memoId: memo.id, cat: key, idx, text: item.text, due: item.due || null, priority: item.priority || null, ts: memo.ts || 0, workspace: itemWs });
           total++;
         }
       });
@@ -2007,10 +2009,11 @@ function renderTodayTasks() {
     }
     const starred = isFocused(t.text);
     const starBtn = `<button class="focus-star-btn${starred ? ' starred' : ''}" data-focus-id="${t.memoId}" data-focus-cat="${t.cat}" data-focus-text="${esc(t.text)}" title="フォーカスに追加">${starred ? '⭐' : '☆'}</button>`;
+    const wsBtn = `<button class="item-ws-btn" data-iws-id="${t.memoId}" data-iws-cat="${t.cat}" data-iws-idx="${t.idx}" title="${t.workspace === 'work' ? 'プライベートに移動' : '仕事に移動'}">${t.workspace === 'work' ? '💼' : '🏠'}</button>`;
     return `<div class="today-task-row">
       <input type="checkbox" data-id="${t.memoId}" data-cat="${t.cat}" data-idx="${t.idx}">
       <span class="today-task-body">${pri}<span class="today-task-text">${rep}${esc(t.text)}</span>${dueLabel}</span>
-      ${starBtn}${actionBtn}
+      ${wsBtn}${starBtn}${actionBtn}
     </div>`;
   };
   const card = (label, list, key) => {
@@ -2217,6 +2220,20 @@ document.addEventListener('click', (e) => {
       const key = card.dataset.taskSection;
       todayCollapseState[key] = !card.classList.contains('collapsed');
       card.classList.toggle('collapsed');
+    }
+    return;
+  }
+
+  const iwsBtn = e.target.closest('[data-iws-id]');
+  if (iwsBtn) {
+    const memo = findMemo(iwsBtn.dataset.iwsId);
+    const item = ((memo?.organized?.categories || {})[iwsBtn.dataset.iwsCat] || [])[Number(iwsBtn.dataset.iwsIdx)];
+    if (item) {
+      const cur = item.workspace || guessWorkspace(memo);
+      item.workspace = cur === 'work' ? 'private' : 'work';
+      saveMemos(memos);
+      toast(item.workspace === 'work' ? '💼 仕事に移動しました' : '🏠 プライベートに移動しました');
+      renderTodayTasks();
     }
     return;
   }

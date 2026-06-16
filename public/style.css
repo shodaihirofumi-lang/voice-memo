@@ -2106,6 +2106,21 @@ header {
 .focus-ai-btn:hover { background: rgba(251,191,36,0.18); border-color: rgba(251,191,36,0.5); }
 .focus-ai-btn:disabled { opacity: 0.5; cursor: default; }
 
+/* 💼🏠 ワークスペーストグル（タスク行） */
+.item-ws-btn {
+  background: none;
+  border: none;
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 0 1px;
+  line-height: 1;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  opacity: 0.55;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.item-ws-btn:hover { opacity: 1; transform: scale(1.2); }
+
 /* ⭐ フォーカス星ボタン（タスク行に表示） */
 .focus-star-btn {
   background: none;
