@@ -43,6 +43,34 @@ const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
 const GAME_KEY = 'voiceMemoGame.v1';
 const FOCUS_KEY = 'voiceMemoFocus.v1';
+const WORKSPACE_FILTER_KEY = 'voiceMemoWsFilter';
+
+// ワークスペースフィルター
+let currentWorkspace = localStorage.getItem(WORKSPACE_FILTER_KEY) || 'all'; // 'all'|'work'|'private'
+
+const WS_WORK_RE = /会議|ミーティング|打ち?合わせ|プレゼン|報告書?|業務|仕事|上司|部下|クライアント|顧客|プロジェクト|締[切め]|企画|見積|請求|契約|出張|社内|会社|職場|残業|納期|資料|発注|営業|商談|採用|面接|コスト|予算|売上|開発|リリース|デプロイ/;
+
+function guessWorkspace(memo) {
+  if (memo.workspace) return memo.workspace;
+  const o = memo.organized || {};
+  const allText = [o.title || '', o.summary || ''].concat(
+    Object.values(o.categories || {}).flat().map((i) => i.text || '')
+  ).join(' ');
+  return WS_WORK_RE.test(allText) ? 'work' : 'private';
+}
+
+function renderWorkspaceTabs() {
+  const el = document.getElementById('workspaceTabs');
+  if (!el) return;
+  const tabs = [
+    { id: 'all', label: '全て' },
+    { id: 'work', label: '💼 仕事' },
+    { id: 'private', label: '🏠 プライベート' },
+  ];
+  el.innerHTML = tabs.map((t) =>
+    `<button class="ws-tab${currentWorkspace === t.id ? ' active' : ''}" data-ws="${t.id}">${t.label}</button>`
+  ).join('');
+}
 const LEVELS = [
   { level: 1,  xp: 0,      title: '見習いメモ屋' },
   { level: 2,  xp: 100,    title: 'タスク見習い' },
@@ -1658,6 +1686,7 @@ async function organize(text) {
       ts: Date.now(),
       transcription: data.transcription,
       organized: data.organized,
+      workspace: data.organized.workspace || 'private',
     };
     // 同じような項目は既存とまとめる（重複を増やさない）
     const mergedCount = mergeDuplicates(memo);
@@ -1787,6 +1816,8 @@ function memoBodyHTML(memo, opts) {
     if (hasTasks) {
       html += `<button class="pill-btn primary" data-action="todoist" data-id="${memo.id}">Todoistへ追加</button>`;
     }
+    const ws = guessWorkspace(memo);
+    html += `<button class="pill-btn ws-toggle-btn ${ws}" data-action="toggle-ws" data-id="${memo.id}">${ws === 'work' ? '💼 仕事' : '🏠 プライベート'}</button>`;
     html += `<button class="pill-btn" data-action="append" data-id="${memo.id}">追記</button>`;
     html += `<button class="pill-btn" data-action="edit" data-id="${memo.id}">編集</button>`;
     html += `<button class="pill-btn" data-action="share" data-id="${memo.id}">共有</button>`;
@@ -1929,6 +1960,7 @@ function renderTodayTasks() {
   const byCat = { tasks: [], reminders: [], shopping: [], ideas: [], notes: [] };
   let total = 0;
   for (const memo of memos) {
+    if (currentWorkspace !== 'all' && guessWorkspace(memo) !== currentWorkspace) continue;
     const cats = (memo.organized && memo.organized.categories) || {};
     for (const key of Object.keys(byCat)) {
       (cats[key] || []).forEach((item, idx) => {
@@ -2038,6 +2070,10 @@ function renderHistory() {
   const q = searchQuery.trim().toLowerCase();
   let list = q ? memos.filter((m) => memoSearchText(m).includes(q)) : memos;
 
+  if (currentWorkspace !== 'all') {
+    list = list.filter((m) => guessWorkspace(m) === currentWorkspace);
+  }
+
   if (categoryFilter) {
     list = list.filter((m) => {
       const cats = (m.organized && m.organized.categories) || {};
@@ -2084,6 +2120,7 @@ function renderHistory() {
               <div class="memo-date">${formatDate(m.ts)}</div>
             </div>
             <div class="head-right">
+              <button class="ws-badge-btn ${guessWorkspace(m)}" data-action="toggle-ws" data-id="${m.id}" title="ワークスペースを切り替え">${guessWorkspace(m) === 'work' ? '💼' : '🏠'}</button>
               <button class="pin-btn${m.pinned ? ' pinned' : ''}" data-action="pin" data-id="${m.id}" aria-label="ピン留め">${PIN_SVG}</button>
               <span class="chevron">${CHEVRON_SVG}</span>
             </div>
@@ -2158,6 +2195,18 @@ document.addEventListener('change', (e) => {
     renderTodayTasks();
     renderDailyQuest();
   }
+});
+
+// ワークスペースタブ切替
+document.getElementById('workspaceTabs')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-ws]');
+  if (!btn) return;
+  currentWorkspace = btn.dataset.ws;
+  localStorage.setItem(WORKSPACE_FILTER_KEY, currentWorkspace);
+  renderWorkspaceTabs();
+  renderTodayTasks();
+  renderHistory();
+  renderFocusCard();
 });
 
 document.addEventListener('click', (e) => {
@@ -2357,6 +2406,19 @@ document.addEventListener('click', (e) => {
 
   if (action === 'share') shareMemo(memo);
   if (action === 'todoist') addToTodoist(memo, btn);
+
+  if (action === 'toggle-ws') {
+    const current = guessWorkspace(memo);
+    memo.workspace = current === 'work' ? 'private' : 'work';
+    if (memo.organized) memo.organized.workspace = memo.workspace;
+    saveMemos(memos);
+    const label = memo.workspace === 'work' ? '💼 仕事に移動しました' : '🏠 プライベートに移動しました';
+    toast(label);
+    renderResult();
+    renderHistory();
+    renderTodayTasks();
+    return;
+  }
 
   if (action === 'pin') {
     memo.pinned = !memo.pinned;
@@ -2772,6 +2834,7 @@ document.getElementById('clearTokenBtn').addEventListener('click', () => {
 refreshTokenStatus();
 setStatus('タップして録音');
 applyTheme(currentTheme);
+renderWorkspaceTabs();
 renderTodayTasks();
 renderGameStats();
 renderDailyMission();

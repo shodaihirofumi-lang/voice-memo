@@ -44,6 +44,65 @@ header {
   padding-top: 0.4rem;
 }
 
+.header-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ===== ワークスペースタブ ===== */
+.workspace-tabs {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: center;
+  padding: 0.4rem 0 0.2rem;
+}
+.ws-tab {
+  font-family: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text-3);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 0.28rem 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
+}
+.ws-tab:hover { background: var(--surface-2); color: var(--text); }
+.ws-tab.active {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: rgba(255,255,255,0.3);
+}
+.ws-tab.active[data-ws="work"]    { color: #60a5fa; border-color: rgba(96,165,250,0.45); background: rgba(96,165,250,0.1); }
+.ws-tab.active[data-ws="private"] { color: #c084fc; border-color: rgba(192,132,252,0.45); background: rgba(192,132,252,0.1); }
+
+/* ===== ワークスペースバッジ（履歴カード右上） ===== */
+.ws-badge-btn {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+  border-radius: 6px;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+.ws-badge-btn:hover { background: var(--surface-2); transform: scale(1.15); }
+
+/* ===== ワークスペーストグルボタン（memo-actions内） ===== */
+.ws-toggle-btn {
+  font-size: 0.76rem !important;
+  font-weight: 700 !important;
+}
+.ws-toggle-btn.work    { color: #60a5fa; border-color: rgba(96,165,250,0.4); }
+.ws-toggle-btn.private { color: #c084fc; border-color: rgba(192,132,252,0.4); }
+
 .wordmark {
   display: inline-block;
   font-size: 0.88rem;

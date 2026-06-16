@@ -133,9 +133,11 @@ function parseOrganized(rawText) {
   const jsonMatch = rawText.match(/\{[\s\S]*\}/);
   const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : rawText);
   const cats = parsed.categories || {};
+  const ws = parsed.workspace === 'work' ? 'work' : 'private';
   const organized = {
     title: String(parsed.title || '音声メモ').slice(0, 40),
     summary: String(parsed.summary || ''),
+    workspace: ws,
     categories: {},
   };
   for (const key of ['tasks', 'shopping', 'ideas', 'reminders', 'notes']) {
@@ -149,6 +151,7 @@ const JSON_FORMAT_SPEC = `以下のJSON形式のみで返してください（Ma
 {
   "title": "20文字以内のタイトル",
   "summary": "1〜2文の要約",
+  "workspace": "work",
   "categories": {
     "tasks": [{"text": "やること", "due": null, "done": false, "priority": "high"}],
     "shopping": [{"text": "買う物", "due": null, "done": false, "priority": null}],
@@ -158,6 +161,7 @@ const JSON_FORMAT_SPEC = `以下のJSON形式のみで返してください（Ma
   }
 }
 
+- workspace: 内容が仕事・業務・ビジネス関連なら "work"、個人・家族・趣味・日常なら "private"
 - priorityはtasks・remindersのみ設定: "high"=今日中・緊急、"medium"=近いうちに、null=特に急がない
 - 空のカテゴリは省略。JSONのみ返してください。`;
 
