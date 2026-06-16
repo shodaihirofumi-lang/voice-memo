@@ -1013,6 +1013,47 @@ header {
 .today-task-due.today-due { color: #fbbf24; font-weight: 600; }
 .today-task-more { font-size: 0.78rem; color: var(--text-3); text-align: right; padding-top: 0.3rem; }
 
+/* ===== タスクセクション：折りたたみ ===== */
+.task-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  margin-bottom: 0.5rem;
+}
+.task-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.task-section-title .card-label { margin-bottom: 0; }
+.tc-count {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+.tc-badge {
+  font-size: 0.66rem;
+  font-weight: 700;
+  border-radius: 6px;
+  padding: 1px 6px;
+}
+.tc-badge.overdue { color: var(--red-soft); background: rgba(239,68,68,0.1); }
+.tc-badge.today   { color: #fbbf24;         background: rgba(251,191,36,0.12); }
+.task-section-chevron { flex-shrink: 0; color: var(--text-3); transition: transform 0.2s ease; }
+.task-section-chevron svg { display: block; width: 18px; height: 18px; }
+.today-tasks-card.collapsed .task-section-chevron { transform: rotate(-90deg); }
+.today-tasks-card.collapsed .task-section-head { margin-bottom: 0; }
+.task-section-body { }
+.today-tasks-card.collapsed .task-section-body { display: none; }
+
 /* ===== カテゴリフィルター ===== */
 .filter-row {
   display: flex;

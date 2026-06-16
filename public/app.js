@@ -1133,6 +1133,7 @@ let appendTargetId = null;
 let pendingChatSave = null;
 let pendingWeeklySave = null;
 const decompGroups = {}; // groupId → { memoId, cat, original } — 分解のundo用（メモリ内のみ）
+const todayCollapseState = {}; // key → boolean (collapsed) — タスク一覧の折りたたみ状態
 
 function findMemo(id) {
   return memos.find((m) => m.id === id);
@@ -1805,20 +1806,39 @@ function renderTodayTasks() {
       ${starBtn}${actionBtn}
     </div>`;
   };
-  const card = (label, list) => list.length
-    ? `<div class="glass-card today-tasks-card"><h3 class="card-label">${label}（${list.length}）</h3>${list.sort(sortFn).map(rowHtml).join('')}</div>`
-    : '';
+  const card = (label, list, key) => {
+    if (!list.length) return '';
+    const sorted = list.sort(sortFn);
+    const hasUrgent = sorted.some((t) => t.due && t.due <= today);
+    // デフォルト: 期限なし5件以上は折りたたむ。ユーザー操作があればそれを優先
+    if (todayCollapseState[key] === undefined) {
+      todayCollapseState[key] = !hasUrgent && sorted.length >= 5;
+    }
+    const collapsed = todayCollapseState[key];
+    const urgentCount = sorted.filter((t) => t.due && t.due < today).length;
+    const todayCount = sorted.filter((t) => t.due === today).length;
+    let badge = '';
+    if (urgentCount) badge += `<span class="tc-badge overdue">${urgentCount}件期限切れ</span>`;
+    else if (todayCount) badge += `<span class="tc-badge today">今日${todayCount}件</span>`;
+    return `<div class="glass-card today-tasks-card${collapsed ? ' collapsed' : ''}" data-task-section="${key}">
+      <div class="task-section-head">
+        <div class="task-section-title"><span class="card-label">${label}</span><span class="tc-count">${sorted.length}</span>${badge}</div>
+        <span class="task-section-chevron">${CHEVRON_SVG}</span>
+      </div>
+      <div class="task-section-body">${sorted.map(rowHtml).join('')}</div>
+    </div>`;
+  };
   // タスクは仕事系とその他で分割、他カテゴリはそのまま
   const work = byCat.tasks.filter((t) => taskTypeBonus(t.text).type === 'work');
   const otherTasks = byCat.tasks.filter((t) => taskTypeBonus(t.text).type !== 'work');
   todayTasksEl.classList.remove('hidden');
   todayTasksEl.innerHTML =
-    card('💼 仕事', work) +
-    card('🗒 タスク', otherTasks) +
-    card('🔔 リマインダー', byCat.reminders) +
-    card('🛒 買い物', byCat.shopping) +
-    card('💡 アイデア', byCat.ideas) +
-    card('📝 メモ', byCat.notes);
+    card('💼 仕事', work, 'work') +
+    card('🗒 タスク', otherTasks, 'tasks') +
+    card('🔔 リマインダー', byCat.reminders, 'reminders') +
+    card('🛒 買い物', byCat.shopping, 'shopping') +
+    card('💡 アイデア', byCat.ideas, 'ideas') +
+    card('📝 メモ', byCat.notes, 'notes');
 }
 
 function getDateGroup(ts) {
@@ -1966,6 +1986,17 @@ document.addEventListener('change', (e) => {
 });
 
 document.addEventListener('click', (e) => {
+  const sectionHead = e.target.closest('.task-section-head');
+  if (sectionHead) {
+    const card = sectionHead.closest('[data-task-section]');
+    if (card) {
+      const key = card.dataset.taskSection;
+      todayCollapseState[key] = !card.classList.contains('collapsed');
+      card.classList.toggle('collapsed');
+    }
+    return;
+  }
+
   const starBtn = e.target.closest('.focus-star-btn');
   if (starBtn) {
     toggleFocus(starBtn.dataset.focusId, starBtn.dataset.focusCat, starBtn.dataset.focusText);
