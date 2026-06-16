@@ -2121,6 +2121,27 @@ header {
 }
 .item-ws-btn:hover { opacity: 1; transform: scale(1.2); }
 
+/* ✕ 個別削除ボタン */
+.item-del-btn {
+  background: none;
+  border: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-3);
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  opacity: 0.45;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s, background 0.15s, opacity 0.15s;
+}
+.item-del-btn:hover, .item-del-btn:active {
+  color: #ef4444;
+  background: rgba(239,68,68,0.12);
+  opacity: 1;
+}
+
 /* ⭐ フォーカス星ボタン（タスク行に表示） */
 .focus-star-btn {
   background: none;

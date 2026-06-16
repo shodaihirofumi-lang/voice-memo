@@ -791,7 +791,7 @@ async function handleDecompose(memoId, cat, idx) {
 
     const cats = memo.organized.categories;
     const groupId = 'dg' + Date.now();
-    const newItems = steps.map((s) => ({ text: s, due: item.due, done: false, priority: item.priority, _dg: groupId }));
+    const newItems = steps.map((s) => ({ text: s, due: item.due, done: false, priority: item.priority, _dg: groupId, _dgOriginal: item.text }));
     decompGroups[groupId] = { memoId, cat, original: { ...item } };
     cats[cat].splice(idx, 1, ...newItems);
     saveMemos(memos);
@@ -805,21 +805,25 @@ async function handleDecompose(memoId, cat, idx) {
   }
 }
 
-function undoDecompose(groupId) {
+function undoDecompose(groupId, memoId, cat) {
   const h = decompGroups[groupId];
-  if (!h) return;
-  const memo = findMemo(h.memoId);
+  const resolvedMemoId = memoId || (h && h.memoId);
+  const resolvedCat = cat || (h && h.cat);
+  if (!resolvedMemoId || !resolvedCat) return;
+  const memo = findMemo(resolvedMemoId);
   if (!memo) return;
-  const arr = (((memo.organized || {}).categories || {})[h.cat]);
+  const arr = (((memo.organized || {}).categories || {})[resolvedCat]);
   if (!arr) return;
-  // 同じgroupIdを持つ項目を全て探して元の1項目に差し替え
   const first = arr.findIndex((it) => it._dg === groupId);
   if (first === -1) return;
   const count = arr.filter((it) => it._dg === groupId).length;
-  const original = { ...h.original };
+  const dgOriginal = arr[first]._dgOriginal;
+  const src = h ? h.original : { text: dgOriginal, due: arr[first].due, done: false, priority: arr[first].priority };
+  const original = { ...src };
   delete original._dg;
+  delete original._dgOriginal;
   arr.splice(first, count, original);
-  delete decompGroups[groupId];
+  if (h) delete decompGroups[groupId];
   saveMemos(memos);
   renderTodayTasks();
   renderDailyQuest();
@@ -1967,7 +1971,7 @@ function renderTodayTasks() {
         if (!item.done) {
           const itemWs = item.workspace || memoWs;
           if (currentWorkspace !== 'all' && itemWs !== currentWorkspace) return;
-          byCat[key].push({ memoId: memo.id, cat: key, idx, text: item.text, due: item.due || null, priority: item.priority || null, ts: memo.ts || 0, workspace: itemWs });
+          byCat[key].push({ memoId: memo.id, cat: key, idx, text: item.text, due: item.due || null, priority: item.priority || null, ts: memo.ts || 0, workspace: itemWs, _dg: item._dg || null, _dgOriginal: item._dgOriginal || null });
           total++;
         }
       });
@@ -2000,9 +2004,9 @@ function renderTodayTasks() {
     // 分解済み（_dg付き）→グループの先頭アイテムにのみ↩️、未分解→🔪
     let actionBtn = '';
     if (t.cat === 'tasks') {
-      if (t._dg && decompGroups[t._dg] && !seenDgGroups.has(t._dg)) {
+      if (t._dg && t._dgOriginal && !seenDgGroups.has(t._dg)) {
         seenDgGroups.add(t._dg);
-        actionBtn = `<button class="decompose-btn" data-undo-dg="${t._dg}" title="元のタスクに戻す">↩️</button>`;
+        actionBtn = `<button class="decompose-btn" data-undo-dg="${t._dg}" data-undo-memo="${t.memoId}" data-undo-cat="${t.cat}" title="元のタスクに戻す">↩️</button>`;
       } else if (!t._dg) {
         actionBtn = `<button class="decompose-btn" data-decomp-id="${t.memoId}" data-decomp-cat="${t.cat}" data-decomp-idx="${t.idx}" title="AIでステップに分解">🔪</button>`;
       }
@@ -2010,10 +2014,11 @@ function renderTodayTasks() {
     const starred = isFocused(t.text);
     const starBtn = `<button class="focus-star-btn${starred ? ' starred' : ''}" data-focus-id="${t.memoId}" data-focus-cat="${t.cat}" data-focus-text="${esc(t.text)}" title="フォーカスに追加">${starred ? '⭐' : '☆'}</button>`;
     const wsBtn = `<button class="item-ws-btn" data-iws-id="${t.memoId}" data-iws-cat="${t.cat}" data-iws-idx="${t.idx}" title="${t.workspace === 'work' ? 'プライベートに移動' : '仕事に移動'}">${t.workspace === 'work' ? '💼' : '🏠'}</button>`;
+    const delBtn = `<button class="item-del-btn" data-idel-id="${t.memoId}" data-idel-cat="${t.cat}" data-idel-idx="${t.idx}" title="削除">✕</button>`;
     return `<div class="today-task-row">
       <input type="checkbox" data-id="${t.memoId}" data-cat="${t.cat}" data-idx="${t.idx}">
       <span class="today-task-body">${pri}<span class="today-task-text">${rep}${esc(t.text)}</span>${dueLabel}</span>
-      ${wsBtn}${starBtn}${actionBtn}
+      ${wsBtn}${starBtn}${actionBtn}${delBtn}
     </div>`;
   };
   const card = (label, list, key) => {
@@ -2244,9 +2249,27 @@ document.addEventListener('click', (e) => {
     return;
   }
 
+  const idelBtn = e.target.closest('[data-idel-id]');
+  if (idelBtn) {
+    const memo = findMemo(idelBtn.dataset.idelId);
+    if (!memo) return;
+    const arr = ((memo.organized?.categories || {})[idelBtn.dataset.idelCat] || []);
+    const idx = Number(idelBtn.dataset.idelIdx);
+    if (idx >= 0 && idx < arr.length) {
+      arr.splice(idx, 1);
+      if (arr.length === 0) delete memo.organized.categories[idelBtn.dataset.idelCat];
+      saveMemos(memos);
+      toast('削除しました');
+      renderTodayTasks();
+      renderDailyQuest();
+      renderResult();
+    }
+    return;
+  }
+
   const undoDgBtn = e.target.closest('[data-undo-dg]');
   if (undoDgBtn) {
-    undoDecompose(undoDgBtn.dataset.undoDg);
+    undoDecompose(undoDgBtn.dataset.undoDg, undoDgBtn.dataset.undoMemo, undoDgBtn.dataset.undoCat);
     return;
   }
 
