@@ -1405,7 +1405,8 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById(`view-${btn.dataset.view}`).classList.add('active');
-    if (btn.dataset.view === 'record') { renderTodayTasks(); renderDailyMission(); renderFocusCard(); renderDailyQuest(); renderBattle(); renderPomodoro(); renderDefeatedToday(); renderCompanion(); }
+    if (btn.dataset.view === 'record') { renderTodayTasks(); renderDailyMission(); renderFocusCard(); }
+    if (btn.dataset.view === 'game') { renderPomodoro(); renderDailyQuest(); renderBattle(); renderCompanion(); renderDefeatedToday(); }
     if (btn.dataset.view === 'history') renderHistory();
     if (btn.dataset.view === 'notes') renderNotesView();
     if (btn.dataset.view === 'settings') { renderTrash(); renderStats(); renderMonsterDex(); renderActivityCalendar(); renderThemes(); renderBadges(); renderGameSettings(); }
