@@ -422,6 +422,41 @@ ${list}
   }
 });
 
+// ===== 日記AI整形 =====
+
+app.post('/api/diary', async (req, res) => {
+  const { text, date } = req.body || {};
+  if (!text || !text.trim()) return res.status(400).json({ error: 'テキストが必要です' });
+  try {
+    const { text: rawText, ai } = await callAI(
+      `以下の日記の下書きを、自然で読みやすい文章に整形してください。
+
+日付: ${date || '不明'}
+
+下書き:
+"""
+${text.trim()}
+"""
+
+以下のJSON形式のみで返してください（Markdownコードブロック不要）:
+{
+  "title": "日記のタイトル（20文字以内）",
+  "content": "整形された日記本文。自然な文章・段落でまとめてください",
+  "highlights": ["この日の印象的な出来事・気づき（1〜3項目、短く）"]
+}`,
+      800
+    );
+    let parsed;
+    try { parsed = JSON.parse(rawText); }
+    catch { const m = rawText.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : null; }
+    if (!parsed) return res.status(500).json({ error: 'AI応答の解析に失敗しました' });
+    res.json({ title: parsed.title || '日記', content: parsed.content || text.trim(), highlights: parsed.highlights || [], ai });
+  } catch (err) {
+    console.error('/api/diary error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ===== AIプラン提案 =====
 
 app.post('/api/plan', async (req, res) => {

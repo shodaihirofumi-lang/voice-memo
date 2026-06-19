@@ -111,6 +111,24 @@
         <div id="defeatedToday"></div>
       </section>
 
+      <!-- 日記画面 -->
+      <section id="view-diary" class="view">
+        <div class="diary-editor glass-card">
+          <div class="diary-editor-head">
+            <input type="date" id="diaryDate" class="diary-date-input">
+            <input type="text" id="diaryTitle" class="text-input diary-title-input" placeholder="タイトル（任意）">
+          </div>
+          <textarea id="diaryText" class="text-input text-area diary-textarea" rows="5" placeholder="今日のことを自由に書いてみよう..."></textarea>
+          <div class="diary-actions">
+            <button id="diaryAiBtn" class="pill-btn">✨ AIでまとめる</button>
+            <button id="diarySaveBtn" class="pill-btn primary">保存</button>
+          </div>
+          <div id="diaryAiResult" class="diary-ai-result hidden"></div>
+        </div>
+        <div id="diaryList"></div>
+        <p id="diaryEmpty" class="empty-message hidden">日記がまだありません。<br>上のエリアから書き始めてみよう。</p>
+      </section>
+
       <!-- ノート画面 -->
       <section id="view-notes" class="view">
         <h2 class="view-title">ノート</h2>
@@ -180,6 +198,10 @@
       <button class="nav-btn" data-view="game" aria-label="集中">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
         <span>集中</span>
+      </button>
+      <button class="nav-btn" data-view="diary" aria-label="日記">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        <span>日記</span>
       </button>
       <button class="nav-btn" data-view="notes" aria-label="ノート">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>

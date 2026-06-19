@@ -43,6 +43,7 @@ const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
 const GAME_KEY = 'voiceMemoGame.v1';
 const FOCUS_KEY = 'voiceMemoFocus.v1';
+const DIARY_KEY = 'voiceMemoDiary.v1';
 const WORKSPACE_FILTER_KEY = 'voiceMemoWsFilter';
 
 // ワークスペースフィルター
@@ -1408,6 +1409,7 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
     if (btn.dataset.view === 'record') { renderTodayTasks(); renderDailyMission(); renderFocusCard(); }
     if (btn.dataset.view === 'game') { renderPomodoro(); renderDailyQuest(); renderBattle(); renderCompanion(); renderDefeatedToday(); }
     if (btn.dataset.view === 'history') renderHistory();
+    if (btn.dataset.view === 'diary') renderDiaryView();
     if (btn.dataset.view === 'notes') renderNotesView();
     if (btn.dataset.view === 'settings') { renderTrash(); renderStats(); renderMonsterDex(); renderActivityCalendar(); renderThemes(); renderBadges(); renderGameSettings(); }
   });
@@ -1910,6 +1912,118 @@ function rerenderAll() {
   renderNotesView();
 }
 
+// ===== 日記 =====
+let diaries = JSON.parse(localStorage.getItem(DIARY_KEY) || '[]');
+function saveDiaries() { localStorage.setItem(DIARY_KEY, JSON.stringify(diaries)); }
+
+function diaryDateStr(d) {
+  d = d || new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function formatDiaryDate(dateStr) {
+  const [y, m, d] = (dateStr || diaryDateStr()).split('-');
+  const dt = new Date(Number(y), Number(m)-1, Number(d));
+  return `${y}年${m}月${d}日（${WEEKDAYS[dt.getDay()]}）`;
+}
+
+function shareDiaryEntry(id) {
+  const entry = diaries.find((e) => e.id === id);
+  if (!entry) return;
+  const date = formatDiaryDate(entry.date);
+  const title = entry.title || '日記';
+  const content = entry.formatted || entry.text || '';
+  const shareText = `${date}\n\n【${title}】\n\n${content}`;
+  if (navigator.share) {
+    navigator.share({ title, text: shareText }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(shareText).then(() => toast('📋 クリップボードにコピーしました')).catch(() => toast('共有に失敗しました'));
+  }
+}
+
+function renderDiaryView() {
+  const dateInput = document.getElementById('diaryDate');
+  if (dateInput && !dateInput.value) dateInput.value = diaryDateStr();
+  const listEl = document.getElementById('diaryList');
+  const emptyEl = document.getElementById('diaryEmpty');
+  if (!listEl) return;
+  const sorted = [...diaries].sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  if (sorted.length === 0) {
+    listEl.innerHTML = '';
+    if (emptyEl) emptyEl.classList.remove('hidden');
+    return;
+  }
+  if (emptyEl) emptyEl.classList.add('hidden');
+  listEl.innerHTML = sorted.map((entry) => {
+    const highlights = (entry.highlights || []).map((h) => `<li>${esc(h)}</li>`).join('');
+    return `<div class="diary-entry glass-card">
+      <div class="diary-entry-head">
+        <div>
+          <div class="diary-entry-date">${formatDiaryDate(entry.date)}</div>
+          ${entry.title ? `<div class="diary-entry-title">${esc(entry.title)}</div>` : ''}
+        </div>
+        <div class="diary-entry-btns">
+          <button class="pill-btn diary-share-btn" data-diary-share="${entry.id}">共有</button>
+          <button class="pill-btn danger diary-del-btn" data-diary-del="${entry.id}">削除</button>
+        </div>
+      </div>
+      <p class="diary-entry-content">${esc(entry.formatted || entry.text || '').replace(/\n/g, '<br>')}</p>
+      ${highlights ? `<ul class="diary-highlights">${highlights}</ul>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function initDiaryEditor() {
+  const saveBtn = document.getElementById('diarySaveBtn');
+  const aiBtn = document.getElementById('diaryAiBtn');
+  const aiResult = document.getElementById('diaryAiResult');
+
+  if (saveBtn) saveBtn.addEventListener('click', () => {
+    const text = (document.getElementById('diaryText')?.value || '').trim();
+    const date = document.getElementById('diaryDate')?.value || diaryDateStr();
+    const title = (document.getElementById('diaryTitle')?.value || '').trim();
+    if (!text) { toast('内容を入力してください'); return; }
+    diaries.unshift({ id: 'diy_' + Date.now(), ts: Date.now(), date, title, text, formatted: text, highlights: [] });
+    saveDiaries();
+    document.getElementById('diaryText').value = '';
+    document.getElementById('diaryTitle').value = '';
+    if (aiResult) { aiResult.innerHTML = ''; aiResult.classList.add('hidden'); }
+    renderDiaryView();
+    toast('📔 日記を保存しました');
+  });
+
+  if (aiBtn) aiBtn.addEventListener('click', async () => {
+    const text = (document.getElementById('diaryText')?.value || '').trim();
+    const date = document.getElementById('diaryDate')?.value || diaryDateStr();
+    if (!text) { toast('内容を入力してください'); return; }
+    aiBtn.disabled = true; aiBtn.textContent = '✨ まとめ中…';
+    try {
+      const res = await fetch('/api/diary', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, date }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'エラー');
+      if (aiResult) {
+        const hi = (data.highlights || []).map((h) => `<li>${esc(h)}</li>`).join('');
+        aiResult.innerHTML = `
+          <div class="diary-ai-title">${esc(data.title || '')}</div>
+          <p class="diary-ai-content">${esc(data.content || '').replace(/\n/g, '<br>')}</p>
+          ${hi ? `<ul class="diary-highlights">${hi}</ul>` : ''}
+          <button class="pill-btn primary diary-ai-save-btn">この内容で保存</button>`;
+        aiResult.classList.remove('hidden');
+        aiResult.querySelector('.diary-ai-save-btn').addEventListener('click', () => {
+          diaries.unshift({ id: 'diy_' + Date.now(), ts: Date.now(), date, title: data.title || '', text, formatted: data.content || text, highlights: data.highlights || [] });
+          saveDiaries();
+          document.getElementById('diaryText').value = '';
+          document.getElementById('diaryTitle').value = '';
+          aiResult.innerHTML = ''; aiResult.classList.add('hidden');
+          renderDiaryView();
+          toast('📔 日記を保存しました');
+        });
+      }
+    } catch (err) { toast(`エラー: ${err.message}`); }
+    finally { aiBtn.disabled = false; aiBtn.textContent = '✨ AIでまとめる'; }
+  });
+}
+
 function renderNotesView() {
   const el = document.getElementById('notesList');
   const emptyEl = document.getElementById('notesEmpty');
@@ -2338,6 +2452,18 @@ document.addEventListener('click', (e) => {
   const starBtn = e.target.closest('.focus-star-btn');
   if (starBtn) {
     toggleFocus(starBtn.dataset.focusId, starBtn.dataset.focusCat, starBtn.dataset.focusText);
+    return;
+  }
+
+  const diaryShareBtn = e.target.closest('[data-diary-share]');
+  if (diaryShareBtn) { shareDiaryEntry(diaryShareBtn.dataset.diaryShare); return; }
+
+  const diaryDelBtn = e.target.closest('[data-diary-del]');
+  if (diaryDelBtn) {
+    diaries = diaries.filter((d) => d.id !== diaryDelBtn.dataset.diaryDel);
+    saveDiaries();
+    renderDiaryView();
+    toast('削除しました');
     return;
   }
 
@@ -2983,6 +3109,7 @@ renderBattle();
 renderCompanion();
 renderDefeatedToday();
 checkDueNotifications();
+initDiaryEditor();
 
 // ===== 共通 =====
 function esc(str) {
