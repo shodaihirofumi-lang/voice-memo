@@ -1861,6 +1861,8 @@ function memoBodyHTML(memo, opts) {
     html += `<button class="pill-btn ws-toggle-btn ${ws}" data-action="toggle-ws" data-id="${memo.id}">${ws === 'work' ? '💼 仕事' : '🏠 プライベート'}</button>`;
     html += `<button class="pill-btn" data-action="append" data-id="${memo.id}">追記</button>`;
     html += `<button class="pill-btn" data-action="edit" data-id="${memo.id}">編集</button>`;
+    const alreadyInDiary = diaries.some((d) => d.memoId === memo.id);
+    html += `<button class="pill-btn${alreadyInDiary ? ' diary-added' : ''}" data-action="diary-save" data-id="${memo.id}">${alreadyInDiary ? '📔 日記済' : '📔 日記'}</button>`;
     html += `<button class="pill-btn" data-action="share" data-id="${memo.id}">共有</button>`;
     if (opts && opts.deletable) {
       html += `<button class="pill-btn danger" data-action="delete" data-id="${memo.id}">削除</button>`;
@@ -2667,6 +2669,31 @@ document.addEventListener('click', (e) => {
 
   const memo = findMemo(btn.dataset.id);
   if (!memo) return;
+
+  if (action === 'diary-save') {
+    if (diaries.some((d) => d.memoId === memo.id)) { toast('すでに日記に追加済みです'); return; }
+    const cats = (memo.organized && memo.organized.categories) || {};
+    const parts = [
+      memo.organized && memo.organized.summary,
+      ...(cats.notes || []).map((n) => n.text),
+      ...(cats.ideas || []).map((n) => n.text),
+    ].filter(Boolean);
+    const date = diaryDateStr(new Date(memo.ts || Date.now()));
+    diaries.unshift({
+      id: 'diy_' + Date.now(),
+      ts: memo.ts || Date.now(),
+      date,
+      title: (memo.organized && memo.organized.title) || '音声メモ',
+      text: memo.transcription || '',
+      formatted: parts.join('\n\n') || memo.transcription || '',
+      highlights: [],
+      memoId: memo.id,
+    });
+    saveDiaries();
+    rerenderAll();
+    toast('📔 日記に追加しました');
+    return;
+  }
 
   if (action === 'share') shareMemo(memo);
   if (action === 'todoist') addToTodoist(memo, btn);
