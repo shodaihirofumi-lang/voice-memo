@@ -43,6 +43,7 @@ const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
 const GAME_KEY = 'voiceMemoGame.v1';
 const FOCUS_KEY = 'voiceMemoFocus.v1';
+const FOCUS_PLAN_DATE_KEY = 'voiceMemoFocusPlanDate';
 const DIARY_KEY = 'voiceMemoDiary.v1';
 const WORKSPACE_FILTER_KEY = 'voiceMemoWsFilter';
 
@@ -208,6 +209,7 @@ let focusTasks = (() => {
 })();
 function saveFocusTasks() { localStorage.setItem(FOCUS_KEY, JSON.stringify(focusTasks)); }
 let focusAllDoneCelebrated = false;
+let focusAutoPlanning = false;
 
 // ===== 効果音（Web Audioで生成） =====
 let soundEnabled = localStorage.getItem('voiceMemoSound') !== '0';
@@ -408,8 +410,8 @@ function toggleFocus(memoId, cat, text) {
     renderTodayTasks();
     return;
   }
-  if (focusTasks.length >= 3) {
-    toast('フォーカスは3件まで！');
+  if (focusTasks.length >= 10) {
+    toast('フォーカスは10件まで！');
     return;
   }
   focusTasks.push({ memoId, cat, text });
@@ -422,57 +424,65 @@ function renderFocusCard() {
   const el = document.getElementById('focusCard');
   if (!el) return;
 
-  // フォーカス内のタスクを実際のmemoデータと照合して done 状態を確認
   const slots = focusTasks.map((f) => {
     const memo = findMemo(f.memoId);
     const cats = (memo && memo.organized && memo.organized.categories) || {};
-    const items = cats[f.cat] || [];
-    const item = items.find((it) => it.text === f.text);
+    const item = (cats[f.cat] || []).find((it) => it.text === f.text);
     return { ...f, done: item ? item.done : false };
   });
 
-  // 全完了チェック
-  if (slots.length === 3 && slots.every((s) => s.done) && !focusAllDoneCelebrated) {
+  const doneCount = slots.filter((s) => s.done).length;
+  if (slots.length > 0 && slots.length === doneCount && !focusAllDoneCelebrated) {
     focusAllDoneCelebrated = true;
-    setTimeout(() => {
-      showConfetti(false);
-      toast('🎉 今日の3フォーカス全達成！素晴らしい！');
-    }, 300);
+    setTimeout(() => { showConfetti(false); toast('🎉 今日のフォーカス全達成！素晴らしい！'); }, 300);
   }
-  if (!slots.every((s) => s.done)) focusAllDoneCelebrated = false;
+  if (doneCount < slots.length) focusAllDoneCelebrated = false;
 
-  const slotHtml = (s, i) => s
-    ? `<div class="focus-slot${s.done ? ' done' : ''}">
-        <span class="focus-slot-num">${i + 1}</span>
-        <span class="focus-slot-text">${esc(s.text)}</span>
-        <button class="focus-slot-remove" data-focus-remove="${i}" title="外す">✕</button>
-      </div>`
-    : `<div class="focus-slot empty"><span class="focus-slot-num">${i + 1}</span><span class="focus-slot-text">タスク行の ⭐ で追加</span></div>`;
+  const slotHtml = (s, i) => `<div class="focus-slot${s.done ? ' done' : ''}">
+    <span class="focus-slot-num">${i + 1}</span>
+    <span class="focus-slot-text">${esc(s.text)}</span>
+    <button class="focus-slot-remove" data-focus-remove="${i}" title="外す">✕</button>
+  </div>`;
 
-  const slotsArr = [slots[0] || null, slots[1] || null, slots[2] || null];
+  const emptyHtml = focusAutoPlanning
+    ? `<div class="focus-slot empty"><span class="focus-slot-text">🤖 AIが今日のプランを考え中...</span></div>`
+    : `<div class="focus-slot empty"><span class="focus-slot-text">タスク行の ⭐ で追加するか、AIにプランを作ってもらおう</span></div>`;
+
   el.innerHTML = `<div class="glass-card focus-card">
     <div class="focus-head">
-      <span class="card-label">⭐ 今日の3フォーカス</span>
-      <span class="focus-badge">${slots.length}/3</span>
+      <span class="card-label">⭐ 今日のフォーカス</span>
+      <span class="focus-badge">${doneCount}/${slots.length || 10}</span>
     </div>
-    <div class="focus-slots">${slotsArr.map(slotHtml).join('')}</div>
-    <button class="focus-ai-btn" id="focusAiBtn">🤖 AIに今日のプランを作ってもらう</button>
+    <div class="focus-slots">${slots.length ? slots.map(slotHtml).join('') : emptyHtml}</div>
+    <button class="focus-ai-btn" id="focusAiBtn">🤖 AIにプランを作り直してもらう</button>
   </div>`;
 
   document.getElementById('focusAiBtn')?.addEventListener('click', showAIPlan);
   el.querySelectorAll('[data-focus-remove]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const i = Number(btn.dataset.focusRemove);
-      focusTasks.splice(i, 1);
+      focusTasks.splice(Number(btn.dataset.focusRemove), 1);
       saveFocusTasks();
       focusAllDoneCelebrated = false;
       renderFocusCard();
       renderTodayTasks();
     });
   });
+
+  // 未設定かつ今日まだ自動プランしていない場合は自動実行
+  if (slots.length === 0 && !focusAutoPlanning) {
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (localStorage.getItem(FOCUS_PLAN_DATE_KEY) !== todayStr) {
+      setTimeout(() => {
+        if (focusTasks.length === 0) showAIPlan();
+      }, 800);
+    }
+  }
 }
 
 async function showAIPlan() {
+  if (focusAutoPlanning) return;
+  focusAutoPlanning = true;
+  renderFocusCard();
   const btn = document.getElementById('focusAiBtn');
   if (btn) { btn.disabled = true; btn.textContent = '🤖 考え中...'; }
 
@@ -509,15 +519,19 @@ async function showAIPlan() {
     focusTasks = data.picks.map((text) => {
       const found = pending.find((p) => p.text === text);
       return found ? { memoId: found.memoId, cat: found.cat, text } : null;
-    }).filter(Boolean).slice(0, 3);
+    }).filter(Boolean).slice(0, 10);
     saveFocusTasks();
+    localStorage.setItem(FOCUS_PLAN_DATE_KEY, new Date().toISOString().split('T')[0]);
     focusAllDoneCelebrated = false;
+    focusAutoPlanning = false;
     renderFocusCard();
     renderTodayTasks();
     if (data.advice) toast(`💡 ${data.advice}`);
   } catch (err) {
+    focusAutoPlanning = false;
     toast(`AIプラン失敗: ${err.message}`);
-    if (btn) { btn.disabled = false; btn.textContent = '🤖 AIに今日のプランを作ってもらう'; }
+    if (btn) { btn.disabled = false; btn.textContent = '🤖 AIにプランを作り直してもらう'; }
+    renderFocusCard();
   }
 }
 

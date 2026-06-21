@@ -474,7 +474,7 @@ app.post('/api/plan', async (req, res) => {
 
   try {
     const { text } = await callAI(
-      `以下のタスクリストを見て、今日やるべき最重要タスクを3件選んでください。
+      `以下のタスクリストを見て、今日やるべきタスクを最大10件選んでください。
 期限切れ・今日期限・[急]のタスクを優先し、次にtasks/remindersを優先してください。
 
 タスクリスト:
@@ -490,7 +490,7 @@ JSONのみ、他のテキストは不要です。`,
     const match = text.match(/\{[\s\S]*?\}/);
     const parsed = JSON.parse(match ? match[0] : text);
     if (!Array.isArray(parsed.picks)) throw new Error('invalid');
-    res.json({ picks: parsed.picks.slice(0, 3), advice: parsed.advice || '' });
+    res.json({ picks: parsed.picks.slice(0, 10), advice: parsed.advice || '' });
   } catch (err) {
     console.error('[PLAN ERROR]', err);
     res.status(500).json({ error: 'プランを作成できませんでした' });
