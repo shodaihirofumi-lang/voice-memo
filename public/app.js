@@ -1354,6 +1354,7 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
     if (btn.dataset.view === 'history') renderHistory();
     if (btn.dataset.view === 'diary') renderDiaryView();
     if (btn.dataset.view === 'notes') renderNotesView();
+    if (btn.dataset.view === 'calendar') renderCalendarView();
     if (btn.dataset.view === 'settings') { renderTrash(); renderStats(); renderMonsterDex(); renderActivityCalendar(); renderThemes(); renderBadges(); renderGameSettings(); }
   });
 });
@@ -1855,6 +1856,93 @@ function rerenderAll() {
   renderResult();
   renderHistory();
   renderNotesView();
+}
+
+// ===== カレンダービュー =====
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+let calSelected = new Date().toISOString().split('T')[0];
+
+function getDueTasks() {
+  const map = {};
+  for (const memo of memos) {
+    const cats = (memo.organized && memo.organized.categories) || {};
+    for (const [cat, items] of Object.entries(cats)) {
+      items.forEach((item, idx) => {
+        if (item.due) {
+          (map[item.due] = map[item.due] || []).push({ text: item.text, cat, memoId: memo.id, idx, done: item.done, priority: item.priority || null });
+        }
+      });
+    }
+  }
+  return map;
+}
+
+function renderCalendarView() {
+  const el = document.getElementById('calendarView');
+  if (!el) return;
+  const dueTasks = getDueTasks();
+  const today = new Date().toISOString().split('T')[0];
+  const y = calYear, m = calMonth;
+  const firstDow = new Date(y, m, 1).getDay();
+  const days = new Date(y, m + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= days; d++) cells.push(d);
+  while (cells.length % 7) cells.push(null);
+
+  const DOW = ['日','月','火','水','木','金','土'];
+  const dowHtml = DOW.map((d, i) => `<div class="cal-dow${i===0?' sun':i===6?' sat':''}">${d}</div>`).join('');
+
+  const cellHtml = cells.map((d) => {
+    if (!d) return `<div class="cal-cell empty"></div>`;
+    const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const tasks = dueTasks[dateStr] || [];
+    const isToday = dateStr === today;
+    const isSel = dateStr === calSelected;
+    const isOverdue = !isToday && dateStr < today && tasks.some(t => !t.done);
+    const dots = tasks.slice(0, 3).map(t =>
+      `<span class="cal-dot${t.done?' done':''}${t.priority==='high'?' high':''}"></span>`
+    ).join('') + (tasks.length > 3 ? `<span class="cal-dot-more">+${tasks.length-3}</span>` : '');
+    return `<div class="cal-cell${isToday?' today':''}${isSel?' selected':''}${isOverdue?' overdue':''}" data-cal-date="${dateStr}">
+      <span class="cal-day-num">${d}</span>
+      ${tasks.length ? `<span class="cal-dot-row">${dots}</span>` : ''}
+    </div>`;
+  }).join('');
+
+  let detailHtml = '';
+  if (calSelected) {
+    const tasks = dueTasks[calSelected] || [];
+    const [sy, sm, sd] = calSelected.split('-');
+    const dt = new Date(Number(sy), Number(sm)-1, Number(sd));
+    const label = `${Number(sm)}月${Number(sd)}日（${WEEKDAYS[dt.getDay()]}）`;
+    const rowsHtml = tasks.length
+      ? tasks.map(t => `<div class="cal-task-row${t.done?' done':''}">
+          <span class="cal-task-pri${t.priority==='high'?' high':t.priority==='medium'?' med':''}"></span>
+          <span class="cal-task-text">${esc(t.text)}</span>
+        </div>`).join('')
+      : `<p class="cal-no-task">この日のタスクはありません</p>`;
+    detailHtml = `<div class="cal-day-detail glass-card"><div class="cal-detail-head">${label}</div>${rowsHtml}</div>`;
+  }
+
+  el.innerHTML = `
+    <div class="cal-header">
+      <button class="cal-nav-btn" id="calPrev">‹</button>
+      <span class="cal-month-label">${y}年${m+1}月</span>
+      <button class="cal-nav-btn" id="calNext">›</button>
+    </div>
+    <div class="cal-grid">${dowHtml}${cellHtml}</div>
+    ${detailHtml}`;
+
+  document.getElementById('calPrev').addEventListener('click', () => {
+    calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendarView();
+  });
+  document.getElementById('calNext').addEventListener('click', () => {
+    calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendarView();
+  });
+  el.querySelectorAll('[data-cal-date]').forEach(cell => {
+    cell.addEventListener('click', () => { calSelected = cell.dataset.calDate; renderCalendarView(); });
+  });
 }
 
 // ===== 日記 =====
