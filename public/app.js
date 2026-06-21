@@ -43,7 +43,6 @@ const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
 const GAME_KEY = 'voiceMemoGame.v1';
 const FOCUS_KEY = 'voiceMemoFocus.v1';
-const FOCUS_PLAN_DATE_KEY = 'voiceMemoFocusPlanDate';
 const DIARY_KEY = 'voiceMemoDiary.v1';
 const WORKSPACE_FILTER_KEY = 'voiceMemoWsFilter';
 
@@ -209,7 +208,6 @@ let focusTasks = (() => {
 })();
 function saveFocusTasks() { localStorage.setItem(FOCUS_KEY, JSON.stringify(focusTasks)); }
 let focusAllDoneCelebrated = false;
-let focusAutoPlanning = false;
 
 // ===== 効果音（Web Audioで生成） =====
 let soundEnabled = localStorage.getItem('voiceMemoSound') !== '0';
@@ -444,9 +442,7 @@ function renderFocusCard() {
     <button class="focus-slot-remove" data-focus-remove="${i}" title="外す">✕</button>
   </div>`;
 
-  const emptyHtml = focusAutoPlanning
-    ? `<div class="focus-slot empty"><span class="focus-slot-text">🤖 AIが今日のプランを考え中...</span></div>`
-    : `<div class="focus-slot empty"><span class="focus-slot-text">タスク行の ⭐ で追加するか、AIにプランを作ってもらおう</span></div>`;
+  const emptyHtml = `<div class="focus-slot empty"><span class="focus-slot-text">タスク行の ⭐ で追加</span></div>`;
 
   el.innerHTML = `<div class="glass-card focus-card">
     <div class="focus-head">
@@ -454,10 +450,8 @@ function renderFocusCard() {
       <span class="focus-badge">${doneCount}/${slots.length || 10}</span>
     </div>
     <div class="focus-slots">${slots.length ? slots.map(slotHtml).join('') : emptyHtml}</div>
-    <button class="focus-ai-btn" id="focusAiBtn">🤖 AIにプランを作り直してもらう</button>
   </div>`;
 
-  document.getElementById('focusAiBtn')?.addEventListener('click', showAIPlan);
   el.querySelectorAll('[data-focus-remove]').forEach((btn) => {
     btn.addEventListener('click', () => {
       focusTasks.splice(Number(btn.dataset.focusRemove), 1);
@@ -467,73 +461,8 @@ function renderFocusCard() {
       renderTodayTasks();
     });
   });
-
-  // 未設定かつ今日まだ自動プランしていない場合は自動実行
-  if (slots.length === 0 && !focusAutoPlanning) {
-    const todayStr = new Date().toISOString().split('T')[0];
-    if (localStorage.getItem(FOCUS_PLAN_DATE_KEY) !== todayStr) {
-      setTimeout(() => {
-        if (focusTasks.length === 0) showAIPlan();
-      }, 800);
-    }
-  }
 }
 
-async function showAIPlan() {
-  if (focusAutoPlanning) return;
-  focusAutoPlanning = true;
-  renderFocusCard();
-  const btn = document.getElementById('focusAiBtn');
-  if (btn) { btn.disabled = true; btn.textContent = '🤖 考え中...'; }
-
-  // 未完了タスクを収集
-  const pending = [];
-  const today = todayISO();
-  for (const memo of memos) {
-    const cats = (memo.organized && memo.organized.categories) || {};
-    for (const [cat, items] of Object.entries(cats)) {
-      for (const item of items) {
-        if (!item.done) {
-          pending.push({ text: item.text, due: item.due || null, cat, memoId: memo.id,
-            urgent: item.due && item.due <= today, priority: item.priority || null });
-        }
-      }
-    }
-  }
-
-  if (pending.length === 0) {
-    toast('未完了タスクがありません');
-    if (btn) { btn.disabled = false; btn.textContent = '🤖 AIに今日のプランを作ってもらう'; }
-    return;
-  }
-
-  try {
-    const res = await fetch('/api/plan', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tasks: pending.slice(0, 40) }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'エラー');
-
-    focusTasks = data.picks.map((text) => {
-      const found = pending.find((p) => p.text === text);
-      return found ? { memoId: found.memoId, cat: found.cat, text } : null;
-    }).filter(Boolean).slice(0, 10);
-    saveFocusTasks();
-    localStorage.setItem(FOCUS_PLAN_DATE_KEY, new Date().toISOString().split('T')[0]);
-    focusAllDoneCelebrated = false;
-    focusAutoPlanning = false;
-    renderFocusCard();
-    renderTodayTasks();
-    if (data.advice) toast(`💡 ${data.advice}`);
-  } catch (err) {
-    focusAutoPlanning = false;
-    toast(`AIプラン失敗: ${err.message}`);
-    if (btn) { btn.disabled = false; btn.textContent = '🤖 AIにプランを作り直してもらう'; }
-    renderFocusCard();
-  }
-}
 
 function renderPomodoro() {
   const el = document.getElementById('pomodoroCard');
