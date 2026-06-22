@@ -1678,6 +1678,27 @@ async function organize(text) {
     memos.unshift(memo);
     saveMemos(memos);
 
+    // 日記に自動保存
+    if (!diaries.some((d) => d.memoId === memo.id)) {
+      const cats = (memo.organized && memo.organized.categories) || {};
+      const parts = [
+        memo.organized && memo.organized.summary,
+        ...(cats.notes || []).map((n) => n.text),
+        ...(cats.ideas || []).map((n) => n.text),
+      ].filter(Boolean);
+      diaries.unshift({
+        id: 'diy_' + Date.now(),
+        ts: memo.ts,
+        date: diaryDateStr(new Date(memo.ts)),
+        title: (memo.organized && memo.organized.title) || '音声メモ',
+        text: memo.transcription || '',
+        formatted: parts.join('\n\n') || memo.transcription || '',
+        highlights: [],
+        memoId: memo.id,
+      });
+      saveDiaries();
+    }
+
     const prevBadges = [...(gameStats.badges || [])];
     gameStats.memoCount = (gameStats.memoCount || 0) + 1;
     saveGameStats(gameStats);
