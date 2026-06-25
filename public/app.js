@@ -1680,19 +1680,13 @@ async function organize(text) {
 
     // 日記に自動保存
     if (!diaries.some((d) => d.memoId === memo.id)) {
-      const cats = (memo.organized && memo.organized.categories) || {};
-      const parts = [
-        memo.organized && memo.organized.summary,
-        ...(cats.notes || []).map((n) => n.text),
-        ...(cats.ideas || []).map((n) => n.text),
-      ].filter(Boolean);
       diaries.unshift({
         id: 'diy_' + Date.now(),
         ts: memo.ts,
         date: diaryDateStr(new Date(memo.ts)),
         title: (memo.organized && memo.organized.title) || '音声メモ',
         text: memo.transcription || '',
-        formatted: parts.join('\n\n') || memo.transcription || '',
+        formatted: buildDiaryFormatted(memo),
         highlights: [],
         memoId: memo.id,
       });
@@ -1969,6 +1963,19 @@ function renderCalendarView() {
 // ===== 日記 =====
 let diaries = JSON.parse(localStorage.getItem(DIARY_KEY) || '[]');
 function saveDiaries() { localStorage.setItem(DIARY_KEY, JSON.stringify(diaries)); }
+
+const DIARY_CAT_LABELS = { tasks: 'タスク', shopping: '買い物', ideas: 'アイデア', reminders: 'リマインダー', notes: 'メモ' };
+function buildDiaryFormatted(memo) {
+  const organized = memo.organized || {};
+  const cats = organized.categories || {};
+  const parts = [];
+  if (organized.summary) parts.push(organized.summary);
+  for (const [cat, label] of Object.entries(DIARY_CAT_LABELS)) {
+    const items = cats[cat] || [];
+    if (items.length) parts.push(`【${label}】\n${items.map((i) => `・${i.text}`).join('\n')}`);
+  }
+  return parts.join('\n\n') || memo.transcription || '';
+}
 
 function diaryDateStr(d) {
   d = d || new Date();
@@ -2724,20 +2731,13 @@ document.addEventListener('click', (e) => {
 
   if (action === 'diary-save') {
     if (diaries.some((d) => d.memoId === memo.id)) { toast('すでに日記に追加済みです'); return; }
-    const cats = (memo.organized && memo.organized.categories) || {};
-    const parts = [
-      memo.organized && memo.organized.summary,
-      ...(cats.notes || []).map((n) => n.text),
-      ...(cats.ideas || []).map((n) => n.text),
-    ].filter(Boolean);
-    const date = diaryDateStr(new Date(memo.ts || Date.now()));
     diaries.unshift({
       id: 'diy_' + Date.now(),
       ts: memo.ts || Date.now(),
-      date,
+      date: diaryDateStr(new Date(memo.ts || Date.now())),
       title: (memo.organized && memo.organized.title) || '音声メモ',
       text: memo.transcription || '',
-      formatted: parts.join('\n\n') || memo.transcription || '',
+      formatted: buildDiaryFormatted(memo),
       highlights: [],
       memoId: memo.id,
     });
