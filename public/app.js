@@ -1678,20 +1678,8 @@ async function organize(text) {
     memos.unshift(memo);
     saveMemos(memos);
 
-    // 日記に自動保存
-    if (!diaries.some((d) => d.memoId === memo.id)) {
-      diaries.unshift({
-        id: 'diy_' + Date.now(),
-        ts: memo.ts,
-        date: diaryDateStr(new Date(memo.ts)),
-        title: (memo.organized && memo.organized.title) || '音声メモ',
-        text: memo.transcription || '',
-        formatted: buildDiaryFormatted(memo),
-        highlights: [],
-        memoId: memo.id,
-      });
-      saveDiaries();
-    }
+    // 日記に自動保存（AIで文章化）
+    autoSaveDiary(memo);
 
     const prevBadges = [...(gameStats.badges || [])];
     gameStats.memoCount = (gameStats.memoCount || 0) + 1;
@@ -1964,17 +1952,35 @@ function renderCalendarView() {
 let diaries = JSON.parse(localStorage.getItem(DIARY_KEY) || '[]');
 function saveDiaries() { localStorage.setItem(DIARY_KEY, JSON.stringify(diaries)); }
 
-const DIARY_CAT_LABELS = { tasks: 'タスク', shopping: '買い物', ideas: 'アイデア', reminders: 'リマインダー', notes: 'メモ' };
-function buildDiaryFormatted(memo) {
-  const organized = memo.organized || {};
-  const cats = organized.categories || {};
-  const parts = [];
-  if (organized.summary) parts.push(organized.summary);
-  for (const [cat, label] of Object.entries(DIARY_CAT_LABELS)) {
-    const items = cats[cat] || [];
-    if (items.length) parts.push(`【${label}】\n${items.map((i) => `・${i.text}`).join('\n')}`);
-  }
-  return parts.join('\n\n') || memo.transcription || '';
+function autoSaveDiary(memo) {
+  if (diaries.some((d) => d.memoId === memo.id)) return;
+  if (!memo.transcription) return;
+  const entry = {
+    id: 'diy_' + Date.now(),
+    ts: memo.ts,
+    date: diaryDateStr(new Date(memo.ts)),
+    title: (memo.organized && memo.organized.title) || '音声メモ',
+    text: memo.transcription,
+    formatted: memo.transcription, // AI変換完了までは生テキストを表示
+    highlights: [],
+    memoId: memo.id,
+  };
+  diaries.unshift(entry);
+  saveDiaries();
+  // AI で日記文章化（非同期・失敗しても生テキストのまま）
+  fetch('/api/diary', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: memo.transcription, date: entry.date }),
+  }).then((r) => r.json()).then((data) => {
+    if (data.content) {
+      entry.formatted = data.content;
+      if (data.title) entry.title = data.title;
+      if (data.highlights && data.highlights.length) entry.highlights = data.highlights;
+      saveDiaries();
+      renderDiaryView();
+    }
+  }).catch(() => {});
 }
 
 function diaryDateStr(d) {
@@ -2731,17 +2737,7 @@ document.addEventListener('click', (e) => {
 
   if (action === 'diary-save') {
     if (diaries.some((d) => d.memoId === memo.id)) { toast('すでに日記に追加済みです'); return; }
-    diaries.unshift({
-      id: 'diy_' + Date.now(),
-      ts: memo.ts || Date.now(),
-      date: diaryDateStr(new Date(memo.ts || Date.now())),
-      title: (memo.organized && memo.organized.title) || '音声メモ',
-      text: memo.transcription || '',
-      formatted: buildDiaryFormatted(memo),
-      highlights: [],
-      memoId: memo.id,
-    });
-    saveDiaries();
+    autoSaveDiary(memo);
     rerenderAll();
     toast('📔 日記に追加しました');
     return;
