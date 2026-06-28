@@ -1355,6 +1355,7 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
     if (btn.dataset.view === 'diary') renderDiaryView();
     if (btn.dataset.view === 'notes') renderNotesView();
     if (btn.dataset.view === 'calendar') renderCalendarView();
+    if (btn.dataset.view === 'advisor') renderAdvisorView();
     if (btn.dataset.view === 'settings') { renderTrash(); renderStats(); renderMonsterDex(); renderActivityCalendar(); renderThemes(); renderBadges(); renderGameSettings(); }
   });
 });
@@ -1879,6 +1880,83 @@ function getDueTasks() {
     }
   }
   return map;
+}
+
+// ===== 助言タブ =====
+function renderAdvisorView() {
+  const el = document.getElementById('advisorView');
+  if (!el) return;
+
+  el.innerHTML = `<div class="glass-card advisor-card">
+    <div class="advisor-header">
+      <h2 class="advisor-title">💡 AIアドバイザー</h2>
+      <p class="advisor-desc">日記・タスク・ノートを分析して、気づきとアドバイスをお届けします。</p>
+    </div>
+    <button id="advisorAnalyzeBtn" class="pill-btn primary advisor-analyze-btn">🔍 分析する</button>
+    <div id="advisorResult"></div>
+  </div>`;
+
+  document.getElementById('advisorAnalyzeBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('advisorAnalyzeBtn');
+    const resultEl = document.getElementById('advisorResult');
+    btn.disabled = true;
+    btn.textContent = '分析中...';
+    resultEl.innerHTML = '<p class="advisor-loading">AIがあなたのデータを読んでいます...</p>';
+
+    const recentMemos = memos.slice(0, 20).map((m) => ({
+      date: m.date || '',
+      title: (m.organized && m.organized.title) || '音声メモ',
+      categories: (m.organized && m.organized.categories) || {},
+    }));
+    const recentDiaries = diaries.slice(0, 7).map((d) => ({
+      date: d.date, title: d.title, text: d.text, formatted: d.formatted,
+    }));
+
+    try {
+      const r = await fetch('/api/advisor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memos: recentMemos, diaries: recentDiaries }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error || 'エラー');
+      const data = await r.json();
+
+      let html = '';
+      if (data.theme) {
+        html += `<div class="advisor-theme">今週のテーマ ▶ <strong>${esc(data.theme)}</strong></div>`;
+      }
+      if (data.observations && data.observations.length) {
+        html += `<div class="advisor-section">
+          <h3 class="advisor-section-title">📊 気づき</h3>
+          ${data.observations.map((o) => `<div class="advisor-item">
+            <span class="advisor-icon">${o.icon}</span>
+            <span class="advisor-item-text">${esc(o.text)}</span>
+          </div>`).join('')}
+        </div>`;
+      }
+      if (data.advice && data.advice.length) {
+        html += `<div class="advisor-section">
+          <h3 class="advisor-section-title">💡 アドバイス</h3>
+          ${data.advice.map((a) => `<div class="advisor-item adv">
+            <span class="advisor-icon">${a.icon}</span>
+            <div class="advisor-adv-body">
+              <strong>${esc(a.text)}</strong>
+              <p>${esc(a.detail)}</p>
+            </div>
+          </div>`).join('')}
+        </div>`;
+      }
+      if (data.encouragement) {
+        html += `<div class="advisor-encouragement">${esc(data.encouragement)}</div>`;
+      }
+      resultEl.innerHTML = html || '<p class="advisor-loading">データが少ないため分析できませんでした。</p>';
+    } catch (err) {
+      resultEl.innerHTML = `<p class="advisor-loading" style="color:var(--red-soft)">${esc(err.message)}</p>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🔍 再分析する';
+    }
+  });
 }
 
 function renderCalendarView() {

@@ -620,6 +620,85 @@ ${context || '（メモなし）'}
   }
 });
 
+// ===== AI助言・考察 =====
+app.post('/api/advisor', async (req, res) => {
+  const { memos: memosIn = [], diaries: diariesIn = [] } = req.body || {};
+  const today = todayJST();
+
+  let taskContext = '';
+  let noteContext = '';
+  let completedCount = 0;
+  let pendingCount = 0;
+
+  for (const m of memosIn.slice(0, 20)) {
+    const cats = m.categories || {};
+    for (const items of Object.values(cats)) {
+      for (const it of items) { if (it.done) completedCount++; else pendingCount++; }
+    }
+    const tasks = [...(cats.tasks || []), ...(cats.reminders || [])];
+    if (tasks.length) {
+      taskContext += `■ ${m.date} ${m.title}\n`;
+      tasks.forEach((t) => {
+        taskContext += `  [${t.done ? '完了' : '未完'}] ${t.text}${t.due ? `（期限:${t.due}）` : ''}${t.priority === 'high' ? ' [急]' : ''}\n`;
+      });
+    }
+    const notes = [...(cats.notes || []), ...(cats.ideas || [])];
+    if (notes.length) {
+      noteContext += `■ ${m.date} ${m.title}\n`;
+      notes.forEach((n) => { noteContext += `  - ${n.text}\n`; });
+    }
+  }
+
+  const diaryContext = diariesIn.slice(0, 7).map((d) =>
+    `■ ${d.date}${d.title ? ` 「${d.title}」` : ''}\n${(d.formatted || d.text || '').slice(0, 200)}`
+  ).join('\n\n');
+
+  try {
+    const { text: rawText } = await callAI(
+      `あなたは私の信頼できるパーソナルアドバイザーです。今日は${today.iso}（${today.weekday}曜日）です。
+私のメモ・タスク・日記を分析して、率直な気づきとアドバイスをください。
+
+【タスク・リマインダー（直近）】
+${taskContext || '（なし）'}
+
+【ノート・アイデア（直近）】
+${noteContext || '（なし）'}
+
+【日記（直近1週間）】
+${diaryContext || '（なし）'}
+
+【統計】完了済み: ${completedCount}件 / 未完了: ${pendingCount}件
+
+以下の観点から分析してください：
+- 繰り返し出てくるテーマ・課題・先送りはないか
+- タスクの量・偏り・優先順位のバランス
+- 精神的・体調的なサインは見えるか（日記から）
+- 今週意識するとよいこと
+
+以下のJSON形式のみで返してください：
+{"observations":[{"icon":"絵文字","text":"気づきの内容（具体的に30〜60文字）"}],"advice":[{"icon":"絵文字","text":"アドバイスのタイトル（15文字以内）","detail":"具体的な提案（40〜80文字）"}],"encouragement":"励ましのメッセージ（30〜50文字）","theme":"今週のテーマ（10文字以内）"}
+
+observationsは2〜4件、adviceは2〜4件。データが少ない場合は一般的な観点から提案してください。`,
+      900
+    );
+
+    let parsed;
+    try { parsed = JSON.parse(rawText); }
+    catch { const m = rawText.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : null; }
+    if (!parsed) return res.status(500).json({ error: 'AI応答の解析に失敗しました' });
+
+    res.json({
+      observations: parsed.observations || [],
+      advice: parsed.advice || [],
+      encouragement: parsed.encouragement || '',
+      theme: parsed.theme || '',
+    });
+  } catch (err) {
+    console.error('/api/advisor error:', err);
+    res.status(500).json({ error: aiErrorMessage(err) });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🎙️  思考整理: http://localhost:${PORT}`);

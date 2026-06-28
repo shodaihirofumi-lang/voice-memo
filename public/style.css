@@ -621,8 +621,58 @@ header {
   -webkit-tap-highlight-color: transparent;
 }
 
-.nav-btn svg { width: 21px; height: 21px; }
+.nav-btn svg { width: 19px; height: 19px; }
 .nav-btn.active { color: var(--text); }
+
+/* ===== 助言タブ ===== */
+.advisor-card { padding: 1.2rem 1rem; }
+.advisor-header { margin-bottom: 1rem; }
+.advisor-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.3rem; }
+.advisor-desc { font-size: 0.82rem; color: var(--text-2); line-height: 1.5; }
+.advisor-analyze-btn { width: 100%; margin-bottom: 1rem; }
+.advisor-loading { color: var(--text-2); font-size: 0.85rem; padding: 0.5rem 0; }
+.advisor-theme {
+  font-size: 0.85rem;
+  color: var(--accent);
+  font-weight: 600;
+  padding: 0.5rem 0.8rem;
+  background: rgba(251,191,36,0.08);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+.advisor-section { margin-bottom: 1.1rem; }
+.advisor-section-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-2);
+  letter-spacing: 0.04em;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+.advisor-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.55rem 0.7rem;
+  background: var(--surface-2);
+  border-radius: 8px;
+  margin-bottom: 0.45rem;
+}
+.advisor-item.adv { align-items: flex-start; }
+.advisor-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 0.05rem; }
+.advisor-item-text { font-size: 0.85rem; line-height: 1.55; color: var(--text); }
+.advisor-adv-body strong { display: block; font-size: 0.88rem; margin-bottom: 0.2rem; }
+.advisor-adv-body p { font-size: 0.82rem; color: var(--text-2); line-height: 1.55; margin: 0; }
+.advisor-encouragement {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(74,222,128,0.08);
+  border-left: 3px solid var(--green);
+  border-radius: 0 8px 8px 0;
+  font-size: 0.88rem;
+  color: var(--green);
+  line-height: 1.55;
+}
 
 /* ===== トースト ===== */
 .toast {
