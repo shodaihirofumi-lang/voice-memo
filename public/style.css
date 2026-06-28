@@ -1954,6 +1954,34 @@ header {
 .decompose-btn:hover { color: #c084fc; border-color: rgba(192,132,252,0.4); }
 .decompose-btn:disabled { opacity: 0.5; cursor: default; }
 
+/* 分解元タスク表示 */
+.dg-source-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.6rem 0.3rem;
+  margin-top: 0.6rem;
+  background: rgba(192,132,252,0.06);
+  border-top: 1px solid rgba(192,132,252,0.22);
+  border-radius: 6px 6px 0 0;
+}
+.dg-source-icon { font-size: 0.85rem; flex-shrink: 0; }
+.dg-source-text {
+  flex: 1;
+  font-size: 0.8rem;
+  color: var(--text-3);
+  text-decoration: line-through;
+  text-decoration-color: rgba(192,132,252,0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.today-task-row.dg-child {
+  border-left: 2px solid rgba(192,132,252,0.35);
+  padding-left: 0.8rem;
+}
+
 /* ===== 冒険ストーリーテキスト（バトル内）===== */
 .story-text {
   font-size: 0.7rem;

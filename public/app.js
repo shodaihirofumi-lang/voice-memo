@@ -2274,12 +2274,12 @@ function renderTodayTasks() {
     const pri = t.priority === 'high' ? '<span class="priority-badge high">急</span>'
       : t.priority === 'medium' ? '<span class="priority-badge medium">中</span>' : '';
     const rep = recurringType(t.text) ? '🔁 ' : '';
-    // 分解済み（_dg付き）→グループの先頭アイテムにのみ↩️、未分解→🔪
     let actionBtn = '';
+    let isFirstInGroup = false;
     if (t.cat === 'tasks') {
       if (t._dg && t._dgOriginal && !seenDgGroups.has(t._dg)) {
         seenDgGroups.add(t._dg);
-        actionBtn = `<button class="decompose-btn" data-undo-dg="${t._dg}" data-undo-memo="${t.memoId}" data-undo-cat="${t.cat}" title="元のタスクに戻す">↩️</button>`;
+        isFirstInGroup = true;
       } else if (!t._dg) {
         actionBtn = `<button class="decompose-btn" data-decomp-id="${t.memoId}" data-decomp-cat="${t.cat}" data-decomp-idx="${t.idx}" title="AIでステップに分解">🔪</button>`;
       }
@@ -2288,11 +2288,19 @@ function renderTodayTasks() {
     const starBtn = `<button class="focus-star-btn${starred ? ' starred' : ''}" data-focus-id="${t.memoId}" data-focus-cat="${t.cat}" data-focus-text="${esc(t.text)}" title="フォーカスに追加">${starred ? '⭐' : '☆'}</button>`;
     const wsBtn = `<button class="item-ws-btn" data-iws-id="${t.memoId}" data-iws-cat="${t.cat}" data-iws-idx="${t.idx}" title="${t.workspace === 'work' ? 'プライベートに移動' : '仕事に移動'}">${t.workspace === 'work' ? '💼' : '🏠'}</button>`;
     const delBtn = `<button class="item-del-btn" data-idel-id="${t.memoId}" data-idel-cat="${t.cat}" data-idel-idx="${t.idx}" title="削除">✕</button>`;
-    return `<div class="today-task-row">
+    const taskRow = `<div class="today-task-row${t._dg ? ' dg-child' : ''}">
       <input type="checkbox" data-id="${t.memoId}" data-cat="${t.cat}" data-idx="${t.idx}">
       <span class="today-task-body">${pri}<span class="today-task-text edit-tap" data-edit-id="${t.memoId}" data-edit-cat="${t.cat}" data-edit-idx="${t.idx}">${rep}${esc(t.text)}</span>${dueLabel}</span>
       ${wsBtn}${starBtn}${actionBtn}${delBtn}
     </div>`;
+    if (isFirstInGroup) {
+      return `<div class="dg-source-row">
+        <span class="dg-source-icon">🔪</span>
+        <span class="dg-source-text">${esc(t._dgOriginal)}</span>
+        <button class="decompose-btn" data-undo-dg="${t._dg}" data-undo-memo="${t.memoId}" data-undo-cat="${t.cat}" title="元のタスクに戻す">↩️ 元に戻す</button>
+      </div>${taskRow}`;
+    }
+    return taskRow;
   };
   const card = (label, list, key) => {
     if (!list.length) return '';
