@@ -633,7 +633,8 @@ app.post('/api/advisor', async (req, res) => {
   for (const m of memosIn.slice(0, 20)) {
     const cats = m.categories || {};
     for (const items of Object.values(cats)) {
-      for (const it of items) { if (it.done) completedCount++; else pendingCount++; }
+      if (!Array.isArray(items)) continue;
+      for (const it of items) { if (it && it.done) completedCount++; else if (it) pendingCount++; }
     }
     const tasks = [...(cats.tasks || []), ...(cats.reminders || [])];
     if (tasks.length) {
@@ -683,9 +684,12 @@ observationsは2〜4件、adviceは2〜4件。データが少ない場合は一�
     );
 
     let parsed;
-    try { parsed = JSON.parse(rawText); }
-    catch { const m = rawText.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : null; }
-    if (!parsed) return res.status(500).json({ error: 'AI応答の解析に失敗しました' });
+    let parsed = null;
+    try { parsed = JSON.parse(rawText); } catch (_e) {}
+    if (!parsed) {
+      try { const m = rawText.match(/\{[\s\S]*\}/); if (m) parsed = JSON.parse(m[0]); } catch (_e) {}
+    }
+    if (!parsed) return res.status(500).json({ error: 'AI応答の解析に失敗しました。もう一度お試しください。' });
 
     res.json({
       observations: parsed.observations || [],

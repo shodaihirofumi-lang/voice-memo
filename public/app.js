@@ -1904,7 +1904,7 @@ function renderAdvisorView() {
     resultEl.innerHTML = '<p class="advisor-loading">AIがあなたのデータを読んでいます...</p>';
 
     const recentMemos = memos.slice(0, 20).map((m) => ({
-      date: m.date || '',
+      date: m.ts ? diaryDateStr(new Date(m.ts)) : '',
       title: (m.organized && m.organized.title) || '音声メモ',
       categories: (m.organized && m.organized.categories) || {},
     }));
@@ -1918,7 +1918,11 @@ function renderAdvisorView() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ memos: recentMemos, diaries: recentDiaries }),
       });
-      if (!r.ok) throw new Error((await r.json()).error || 'エラー');
+      if (!r.ok) {
+        let errMsg = 'サーバーエラー';
+        try { errMsg = (await r.json()).error || errMsg; } catch (_e) {}
+        throw new Error(errMsg);
+      }
       const data = await r.json();
 
       let html = '';
