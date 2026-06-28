@@ -2347,11 +2347,25 @@ function renderTodayTasks() {
   const seenDgGroups = new Set();
   const rowHtml = (t) => {
     let dueLabel = '';
+    let overdueTextStyle = '';
     if (t.due) {
       const overdue = t.due < today;
       const isToday = t.due === today;
       const dueCls = overdue ? ' overdue' : isToday ? ' today-due' : '';
-      dueLabel = `<span class="today-task-due${dueCls}">${formatDue(t.due)}${overdue ? ' 期限切れ' : isToday ? ' 今日' : ''}</span>`;
+      let daysOver = 0;
+      if (overdue) {
+        const todayMs = new Date(today + 'T00:00:00').getTime();
+        const dueMs = new Date(t.due + 'T00:00:00').getTime();
+        daysOver = Math.max(1, Math.floor((todayMs - dueMs) / 86400000));
+        const p = Math.min(daysOver / 21, 1); // 0→1 over 21 days
+        const fontSize = (0.88 + p * 0.3).toFixed(2); // 0.88rem → 1.18rem
+        const r = Math.round(246 + (220 - 246) * p); // amber → red
+        const g = Math.round(158 + (38 - 158) * p);
+        const b = Math.round(11 + (38 - 11) * p);
+        const weight = daysOver >= 7 ? '700' : '600';
+        overdueTextStyle = ` style="font-size:${fontSize}rem;color:rgb(${r},${g},${b});font-weight:${weight}"`;
+      }
+      dueLabel = `<span class="today-task-due${dueCls}">${formatDue(t.due)}${overdue ? ` 期限切れ${daysOver > 1 ? `(${daysOver}日)` : ''}` : isToday ? ' 今日' : ''}</span>`;
     }
     const pri = t.priority === 'high' ? '<span class="priority-badge high">急</span>'
       : t.priority === 'medium' ? '<span class="priority-badge medium">中</span>' : '';
@@ -2372,7 +2386,7 @@ function renderTodayTasks() {
     const delBtn = `<button class="item-del-btn" data-idel-id="${t.memoId}" data-idel-cat="${t.cat}" data-idel-idx="${t.idx}" title="削除">✕</button>`;
     const taskRow = `<div class="today-task-row${t._dg ? ' dg-child' : ''}">
       <input type="checkbox" data-id="${t.memoId}" data-cat="${t.cat}" data-idx="${t.idx}">
-      <span class="today-task-body">${pri}<span class="today-task-text edit-tap" data-edit-id="${t.memoId}" data-edit-cat="${t.cat}" data-edit-idx="${t.idx}">${rep}${esc(t.text)}</span>${dueLabel}</span>
+      <span class="today-task-body">${pri}<span class="today-task-text edit-tap"${overdueTextStyle} data-edit-id="${t.memoId}" data-edit-cat="${t.cat}" data-edit-idx="${t.idx}">${rep}${esc(t.text)}</span>${dueLabel}</span>
       ${wsBtn}${starBtn}${actionBtn}${delBtn}
     </div>`;
     if (isFirstInGroup) {
