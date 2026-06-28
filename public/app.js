@@ -446,8 +446,8 @@ function renderFocusCard() {
 
   el.innerHTML = `<div class="glass-card focus-card">
     <div class="focus-head">
-      <span class="card-label">⭐ 今日のフォーカス</span>
-      <span class="focus-badge">${doneCount}/${slots.length || 10}</span>
+      <span class="card-label">⭐ 今日のフォーカス <small style="font-weight:400;opacity:.7">最大10件</small></span>
+      <span class="focus-badge">${doneCount}/${slots.length}</span>
     </div>
     <div class="focus-slots">${slots.length ? slots.map(slotHtml).join('') : emptyHtml}</div>
   </div>`;
