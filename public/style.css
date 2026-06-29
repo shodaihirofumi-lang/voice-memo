@@ -280,7 +280,7 @@ header {
 }
 
 .card-label {
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -398,7 +398,7 @@ header {
 
 .priority-badge {
   display: inline-block;
-  font-size: 0.62rem;
+  font-size: 0.72rem;
   font-weight: 700;
   padding: 1px 5px;
   border-radius: 4px;
@@ -1086,7 +1086,7 @@ header {
   display: flex;
   align-items: flex-start;
   gap: 0.6rem;
-  padding: 0.42rem 0;
+  padding: 0.58rem 0;
   border-bottom: 1px solid var(--border);
 }
 .today-task-row:last-of-type { border-bottom: none; }
@@ -1094,8 +1094,8 @@ header {
 .today-task-row input[type="checkbox"] {
   appearance: none;
   -webkit-appearance: none;
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   border: 1.5px solid #3f3f46;
   border-radius: 6px;
   background: transparent;
@@ -1116,7 +1116,7 @@ header {
   transform: rotate(45deg);
 }
 .today-task-body { display: flex; align-items: baseline; gap: 0.35rem; flex: 1; flex-wrap: wrap; }
-.today-task-text { font-size: 0.9rem; word-break: break-word; }
+.today-task-text { font-size: 1.0rem; word-break: break-word; }
 .edit-tap { cursor: text; border-radius: 3px; }
 .edit-tap:hover { text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
 .item-edit-input {
@@ -1130,7 +1130,7 @@ header {
   outline: none;
   min-width: 0;
 }
-.today-task-due { font-size: 0.72rem; color: var(--text-3); white-space: nowrap; }
+.today-task-due { font-size: 0.82rem; color: var(--text-2); white-space: nowrap; }
 .today-task-due.overdue { color: var(--red-soft); font-weight: 600; }
 .today-task-due.today-due { color: #fbbf24; font-weight: 600; }
 .today-task-more { font-size: 0.78rem; color: var(--text-3); text-align: right; padding-top: 0.3rem; }
@@ -1284,7 +1284,7 @@ header {
 }
 .task-section-title .card-label { margin-bottom: 0; }
 .tc-count {
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   font-weight: 700;
   color: var(--text-3);
   background: var(--surface-2);
