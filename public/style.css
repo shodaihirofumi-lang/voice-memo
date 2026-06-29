@@ -8,11 +8,11 @@
   --bg: #09090b;
   --surface: #121215;
   --surface-2: #19191d;
-  --border: rgba(255, 255, 255, 0.07);
-  --border-strong: rgba(255, 255, 255, 0.14);
-  --text: #f4f4f5;
-  --text-2: #a1a1aa;
-  --text-3: #69696f;
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --text: #f8f8fa;
+  --text-2: #b8b8c4;
+  --text-3: #7e7e8a;
   --red: #ef4444;
   --red-soft: #f87171;
   --green: #4ade80;
@@ -21,7 +21,7 @@
 }
 
 html {
-  font-size: 18px;
+  font-size: 20px;
 }
 
 body {
