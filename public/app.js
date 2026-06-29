@@ -2358,12 +2358,13 @@ function renderTodayTasks() {
         const dueMs = new Date(t.due + 'T00:00:00').getTime();
         daysOver = Math.max(1, Math.floor((todayMs - dueMs) / 86400000));
         const p = Math.min(daysOver / 21, 1); // 0→1 over 21 days
-        const fontSize = (0.88 + p * 0.3).toFixed(2); // 0.88rem → 1.18rem
-        const r = Math.round(246 + (220 - 246) * p); // amber → red
-        const g = Math.round(158 + (38 - 158) * p);
-        const b = Math.round(11 + (38 - 11) * p);
-        const weight = daysOver >= 7 ? '700' : '600';
-        overdueTextStyle = ` style="font-size:${fontSize}rem;color:rgb(${r},${g},${b});font-weight:${weight}"`;
+        const fontSize = (0.88 + p * 0.72).toFixed(2); // 0.88rem → 1.6rem
+        // 黄(253,224,71) → オレンジ(249,115,22) → 赤(239,68,68)
+        const r = Math.round(253 + (239 - 253) * p);
+        const g = Math.round(224 + (68 - 224) * p);
+        const b = Math.round(71 + (68 - 71) * p);
+        const weight = daysOver >= 14 ? '800' : daysOver >= 5 ? '700' : '600';
+        overdueTextStyle = ` style="font-size:${fontSize}rem;color:rgb(${r},${g},${b});font-weight:${weight};text-shadow:0 0 8px rgba(${r},${g},${b},0.4)"`;
       }
       dueLabel = `<span class="today-task-due${dueCls}">${formatDue(t.due)}${overdue ? ` 期限切れ${daysOver > 1 ? `(${daysOver}日)` : ''}` : isToday ? ' 今日' : ''}</span>`;
     }
