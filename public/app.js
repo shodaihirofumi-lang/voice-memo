@@ -3404,9 +3404,9 @@ function applyWikiLinks(text, terms) {
   let out = String(text || '');
   if (!out || !Array.isArray(terms) || terms.length === 0) return out;
 
-  // 長い語を先に処理する（「ABC」より「ABCプロジェクト」を優先するため）
-  const sorted = terms
-    .map((t) => String(t || '').trim())
+  // 重複を除いてから、長い語を先に処理する（「ABC」より「ABCプロジェクト」を優先するため）。
+  // 重複除去がないと、登録語とAI抽出語が同じ場合に同一語が2箇所リンクされてしまう
+  const sorted = [...new Set(terms.map((t) => String(t || '').trim()))]
     .filter((t) => t && !WIKILINK_UNSAFE_RE.test(t))
     .sort((a, b) => b.length - a.length);
 
