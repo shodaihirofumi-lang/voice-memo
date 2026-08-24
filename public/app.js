@@ -3422,6 +3422,40 @@ document.getElementById('clearVaultBtn')?.addEventListener('click', () => {
   toast('削除しました');
 });
 
+// Android実機での実効上限は未検証。超えたらクリップボード経由に切り替える。
+// 実機で長いメモを試した結果を見てこの値を調整する
+const OBSIDIAN_URL_LIMIT = 2000;
+
+// 公式ドキュメントの指定どおり、値は encodeURIComponent で URI エンコードする
+function buildObsidianDailyURI(params) {
+  const vault = getObsidianVault();
+  const qs = ['append=true'];
+  if (vault) qs.push(`vault=${encodeURIComponent(vault)}`);
+  for (const [k, v] of Object.entries(params)) {
+    qs.push(v === true ? `${k}=true` : `${k}=${encodeURIComponent(v)}`);
+  }
+  return `obsidian://daily?${qs.join('&')}`;
+}
+
+// URIの組み立てまでを行い、Obsidianの起動はしない（検証しやすくするため分離）
+async function prepareObsidianSend(memo) {
+  const md = memoToMarkdown(memo);
+  if (!md) return { ok: false, reason: 'empty' };
+
+  const withContent = buildObsidianDailyURI({ content: md });
+  if (withContent.length <= OBSIDIAN_URL_LIMIT) {
+    return { ok: true, uri: withContent, mode: 'content', markdown: md };
+  }
+  // clipboard=true はクリップボードの内容を本文に使う公式パラメータ。URL長の制限を受けない
+  try {
+    await navigator.clipboard.writeText(md);
+  } catch (err) {
+    console.error('[Obsidian] clipboard', err);
+    return { ok: false, reason: 'clipboard' };
+  }
+  return { ok: true, uri: buildObsidianDailyURI({ clipboard: true }), mode: 'clipboard', markdown: md };
+}
+
 // ===== 設定 =====
 function refreshTokenStatus() {
   const saved = !!localStorage.getItem(TOKEN_KEY);
