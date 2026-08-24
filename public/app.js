@@ -167,6 +167,18 @@ const DAILY_MISSIONS = [
   { type: 'record_1', label: '音声メモを1件録る',        target: 1, bonusXP: 40,  key: 'memosDone' },
 ];
 
+// localStorage への保存。容量超過などで失敗したら黙って捨てずに知らせる
+function persist(key, value, label) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (err) {
+    console.error('[保存失敗]', key, err);
+    toast(`⚠️ ${label}を保存できませんでした。空き容量が不足しています。設定→バックアップで書き出してください`);
+    return false;
+  }
+}
+
 // ===== ゲーム =====
 function loadGameStats() {
   const defaults = { xp: 0, streak: 0, lastDate: null, totalCompleted: 0,
@@ -179,7 +191,7 @@ function loadGameStats() {
     return saved ? { ...defaults, ...saved } : defaults;
   } catch { return defaults; }
 }
-function saveGameStats(s) { localStorage.setItem(GAME_KEY, JSON.stringify(s)); }
+function saveGameStats(s) { persist(GAME_KEY, s, 'ゲーム進行'); }
 
 function getLevelInfo(xp) {
   let cur = LEVELS[0], nxt = LEVELS[1];
@@ -206,7 +218,7 @@ let focusTasks = (() => {
   } catch {}
   return [];
 })();
-function saveFocusTasks() { localStorage.setItem(FOCUS_KEY, JSON.stringify(focusTasks)); }
+function saveFocusTasks() { persist(FOCUS_KEY, focusTasks, 'フォーカス'); }
 let focusAllDoneCelebrated = false;
 
 // ===== 効果音（Web Audioで生成） =====
@@ -392,6 +404,7 @@ let pomodoroRunning = false;
 let pomodoroElapsed = 0;
 const POMODORO_DURATION = 25 * 60;
 let pomodoroInterval = null;
+let pomodoroStartAt = null;
 
 // ===== 今日の3フォーカス =====
 function isFocused(text) {
@@ -504,15 +517,20 @@ function renderPomodoro() {
   }
 }
 
+function tickPomodoro() {
+  if (!pomodoroRunning) return;
+  // 経過はカウントアップではなく実時刻から求める（裏に回るとsetIntervalが間引かれるため）
+  pomodoroElapsed = Math.min(POMODORO_DURATION, Math.floor((Date.now() - pomodoroStartAt) / 1000));
+  if (pomodoroElapsed >= POMODORO_DURATION) pomodoroComplete();
+  else renderPomodoro();
+}
+
 function startPomodoro() {
   if (pomodoroRunning) return;
   pomodoroRunning = true;
+  pomodoroStartAt = Date.now();
   pomodoroElapsed = 0;
-  pomodoroInterval = setInterval(() => {
-    pomodoroElapsed++;
-    if (pomodoroElapsed >= POMODORO_DURATION) pomodoroComplete();
-    else renderPomodoro();
-  }, 1000);
+  pomodoroInterval = setInterval(tickPomodoro, 1000);
   renderPomodoro();
   startBGM();
   haptic([20, 10, 20]);
@@ -524,6 +542,7 @@ function stopPomodoro() {
   stopBGM();
   pomodoroRunning = false;
   pomodoroElapsed = 0;
+  pomodoroStartAt = null;
   renderPomodoro();
   toast('集中モードを中断しました');
 }
@@ -533,6 +552,7 @@ function pomodoroComplete() {
   stopBGM();
   pomodoroRunning = false;
   pomodoroElapsed = 0;
+  pomodoroStartAt = null;
 
   const xpReward = 150;
   gameStats.xp += xpReward;
@@ -917,12 +937,12 @@ function renderActivityCalendar() {
     days.push({ iso, count: log[iso] || 0, isToday: i === 0 });
   }
   const lv = (c) => c === 0 ? 0 : c <= 1 ? 1 : c <= 3 ? 2 : c <= 6 ? 3 : 4;
-  const grid = days.map((d) => `<div class="cal-cell lv${lv(d.count)}${d.isToday ? ' today' : ''}" title="${d.iso}：${d.count}件"></div>`).join('');
+  const grid = days.map((d) => `<div class="heat-cell lv${lv(d.count)}${d.isToday ? ' today' : ''}" title="${d.iso}：${d.count}件"></div>`).join('');
   const active = days.filter((d) => d.count > 0).length;
   el.innerHTML = `<div class="glass-card settings-card">
     <h3 class="card-label">活動カレンダー（直近5週・${active}日達成）</h3>
-    <div class="cal-grid">${grid}</div>
-    <div class="cal-legend"><span>少</span><span class="cal-cell lv0"></span><span class="cal-cell lv1"></span><span class="cal-cell lv2"></span><span class="cal-cell lv3"></span><span class="cal-cell lv4"></span><span>多</span></div>
+    <div class="heat-grid">${grid}</div>
+    <div class="heat-legend"><span>少</span><span class="heat-cell lv0"></span><span class="heat-cell lv1"></span><span class="heat-cell lv2"></span><span class="heat-cell lv3"></span><span class="heat-cell lv4"></span><span>多</span></div>
   </div>`;
 }
 
@@ -1303,9 +1323,14 @@ function loadMemos() {
 }
 
 function saveMemos(memos) {
-  try {
-    localStorage.setItem(STORE_KEY, JSON.stringify(memos));
-  } catch {}
+  persist(STORE_KEY, memos, 'メモ');
+}
+
+// 編集中の入力は毎打鍵ではなく少し待ってから保存する
+let editSaveTimer = null;
+function saveMemosSoon() {
+  clearTimeout(editSaveTimer);
+  editSaveTimer = setTimeout(() => saveMemos(memos), 400);
 }
 
 let memos = loadMemos();
@@ -1335,9 +1360,7 @@ function loadTrash() {
 }
 
 function saveTrash(t) {
-  try {
-    localStorage.setItem(TRASH_KEY, JSON.stringify(t));
-  } catch {}
+  persist(TRASH_KEY, t, 'ゴミ箱');
 }
 
 let trash = loadTrash();
@@ -1362,7 +1385,10 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
 
 // アプリ復帰（バックグラウンド→前面）時は必ずホーム（録音画面）に戻す
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState !== 'visible' || isRecording) return;
+  if (document.visibilityState !== 'visible') return;
+  // 裏でタイマーが止まっていても、復帰時に実経過へ追いつかせる
+  if (pomodoroRunning) tickPomodoro();
+  if (isRecording) return;
   const recNav = document.querySelector('.nav-btn[data-view="record"]');
   if (recNav && !recNav.classList.contains('active')) recNav.click();
 });
@@ -1392,7 +1418,7 @@ async function startRecording() {
     });
   } catch {
     setStatus('マイクへのアクセスを許可してください', 'error');
-    return;
+    return false;
   }
 
   try {
@@ -1416,8 +1442,10 @@ async function startRecording() {
     recProcessor.connect(recCtx.destination);
   } catch {
     stream.getTracks().forEach((t) => t.stop());
+    if (recCtx) { recCtx.close().catch(() => {}); recCtx = null; }
+    recStream = null;
     setStatus('録音を開始できませんでした', 'error');
-    return;
+    return false;
   }
 
   isRecording = true;
@@ -1430,6 +1458,7 @@ async function startRecording() {
   resultEl.innerHTML = '';
   startTimer();
   drawViz();
+  return true;
 }
 
 function stopRecording() {
@@ -1556,7 +1585,7 @@ async function processRecording(samples, inRate) {
   setStatus('文字起こし中...', 'processing');
 
   const text = await transcribeAudio(blob, 'audio/wav');
-  if (!text) { resetButton(); return; }
+  if (!text) { appendTargetId = null; resetButton(); return; }
 
   liveFinalEl.textContent = text;
   liveInterimEl.textContent = '';
@@ -1581,13 +1610,16 @@ async function transcribeAudio(blob, mimeType) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ audio: base64, mimeType }),
     });
-    const data = await r.json();
+    let data = null;
+    try { data = await r.json(); } catch {}
 
     if (!r.ok) {
-      setStatus(`文字起こしエラー: ${data.error || 'エラー'}`, 'error');
+      const msg = (data && data.error)
+        || (r.status === 413 ? '録音データが大きすぎます。短く分けて録音してください' : `サーバーエラー (${r.status})`);
+      setStatus(`文字起こしエラー: ${msg}`, 'error');
       return null;
     }
-    if (!data.text || !data.text.trim()) {
+    if (!data || !data.text || !data.text.trim()) {
       setStatus('音声が認識できませんでした。もう一度お試しください', 'error');
       return null;
     }
@@ -1865,7 +1897,7 @@ function rerenderAll() {
 // ===== カレンダービュー =====
 let calYear = new Date().getFullYear();
 let calMonth = new Date().getMonth();
-let calSelected = new Date().toISOString().split('T')[0];
+let calSelected = todayISO(); // UTCだと日本時間の朝9時まで前日になる
 
 function getDueTasks() {
   const map = {};
@@ -1933,7 +1965,7 @@ function renderAdvisorView() {
         html += `<div class="advisor-section">
           <h3 class="advisor-section-title">📊 気づき</h3>
           ${data.observations.map((o) => `<div class="advisor-item">
-            <span class="advisor-icon">${o.icon}</span>
+            <span class="advisor-icon">${esc(o.icon || '')}</span>
             <span class="advisor-item-text">${esc(o.text)}</span>
           </div>`).join('')}
         </div>`;
@@ -1942,7 +1974,7 @@ function renderAdvisorView() {
         html += `<div class="advisor-section">
           <h3 class="advisor-section-title">💡 アドバイス</h3>
           ${data.advice.map((a) => `<div class="advisor-item adv">
-            <span class="advisor-icon">${a.icon}</span>
+            <span class="advisor-icon">${esc(a.icon || '')}</span>
             <div class="advisor-adv-body">
               <strong>${esc(a.text)}</strong>
               <p>${esc(a.detail)}</p>
@@ -1967,7 +1999,7 @@ function renderCalendarView() {
   const el = document.getElementById('calendarView');
   if (!el) return;
   const dueTasks = getDueTasks();
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayISO();
   const y = calYear, m = calMonth;
   const firstDow = new Date(y, m, 1).getDay();
   const days = new Date(y, m + 1, 0).getDate();
@@ -2032,7 +2064,7 @@ function renderCalendarView() {
 
 // ===== 日記 =====
 let diaries = JSON.parse(localStorage.getItem(DIARY_KEY) || '[]');
-function saveDiaries() { localStorage.setItem(DIARY_KEY, JSON.stringify(diaries)); }
+function saveDiaries() { persist(DIARY_KEY, diaries, '日記'); }
 
 function autoSaveDiary(memo) {
   if (diaries.some((d) => d.memoId === memo.id)) return;
@@ -2874,12 +2906,11 @@ document.addEventListener('click', (e) => {
     if (isRecording) return;
     appendTargetId = memo.id;
     document.querySelector('.nav-btn[data-view="record"]').click();
-    startRecording();
-    if (isRecording) {
-      setStatus('追記を録音中... 話してください', 'recording');
-    } else {
-      appendTargetId = null;
-    }
+    // startRecording は async。待たずに isRecording を見ると必ず false になり追記先が消える
+    startRecording().then((started) => {
+      if (started) setStatus('追記を録音中... 話してください', 'recording');
+      else appendTargetId = null;
+    });
   }
 
   if (action === 'edit') {
@@ -2898,6 +2929,7 @@ document.addEventListener('click', (e) => {
   if (action === 'del-item') {
     const arr = ((memo.organized || {}).categories || {})[btn.dataset.cat];
     if (arr) arr.splice(Number(btn.dataset.idx), 1);
+    saveMemos(memos);
     rerenderAll();
   }
 
@@ -2932,10 +2964,10 @@ document.addEventListener('input', (e) => {
     const memo = findMemo(el.dataset.id);
     if (!memo) return;
     const item = (((memo.organized || {}).categories || {})[el.dataset.cat] || [])[el.dataset.idx];
-    if (item) item.text = el.value;
+    if (item) { item.text = el.value; saveMemosSoon(); }
   } else if (el.matches('.title-edit')) {
     const memo = findMemo(el.dataset.id);
-    if (memo && memo.organized) memo.organized.title = el.value;
+    if (memo && memo.organized) { memo.organized.title = el.value; saveMemosSoon(); }
   }
 });
 
@@ -3139,11 +3171,21 @@ weeklyBtn.addEventListener('click', async () => {
 
 // ===== バックアップ =====
 document.getElementById('exportBtn').addEventListener('click', () => {
-  if (memos.length === 0) {
-    toast('書き出すメモがありません');
+  if (memos.length === 0 && diaries.length === 0) {
+    toast('書き出すデータがありません');
     return;
   }
-  const data = { app: 'voice-memo', version: 1, exportedAt: new Date().toISOString(), memos };
+  // v1 は memos だけだった。v2 で日記・ゴミ箱・ゲーム進行も含める
+  const data = {
+    app: 'voice-memo',
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    memos,
+    diaries,
+    trash,
+    gameStats,
+    focusTasks,
+  };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -3153,7 +3195,7 @@ document.getElementById('exportBtn').addEventListener('click', () => {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-  toast(`${memos.length}件を書き出しました`);
+  toast(`メモ${memos.length}件・日記${diaries.length}件を書き出しました`);
 });
 
 const importFileEl = document.getElementById('importFile');
@@ -3168,6 +3210,7 @@ importFileEl.addEventListener('change', async () => {
     const arr = Array.isArray(parsed) ? parsed : parsed.memos;
     if (!Array.isArray(arr)) throw new Error('invalid');
 
+    // メモ（idが重複するものはスキップ）
     const map = new Map(memos.map((m) => [m.id, m]));
     let added = 0;
     for (const m of arr) {
@@ -3178,8 +3221,58 @@ importFileEl.addEventListener('change', async () => {
     }
     memos = [...map.values()].sort((a, b) => (b.ts || 0) - (a.ts || 0));
     saveMemos(memos);
-    renderHistory();
-    toast(added > 0 ? `${added}件を復元しました` : '新しいメモはありませんでした');
+
+    // 日記（idが重複するものはスキップ）
+    let diaryAdded = 0;
+    if (Array.isArray(parsed.diaries)) {
+      const dmap = new Map(diaries.map((d) => [d.id, d]));
+      for (const d of parsed.diaries) {
+        if (d && d.id && !dmap.has(d.id)) { dmap.set(d.id, d); diaryAdded++; }
+      }
+      diaries = [...dmap.values()].sort((a, b) => (b.ts || 0) - (a.ts || 0));
+      saveDiaries();
+    }
+
+    // ゴミ箱（上限20件）
+    if (Array.isArray(parsed.trash)) {
+      const tmap = new Map(trash.map((t) => [t.id, t]));
+      for (const t of parsed.trash) {
+        if (t && t.id && !tmap.has(t.id)) tmap.set(t.id, t);
+      }
+      trash = [...tmap.values()].sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0)).slice(0, 20);
+      saveTrash(trash);
+    }
+
+    // ゲーム進行はマージできない（上書き）ので必ず確認する
+    let progressRestored = false;
+    if (parsed.gameStats && typeof parsed.gameStats === 'object') {
+      if (confirm('ゲーム進行（XP・レベル・図鑑・実績）も復元しますか？\nこの端末の現在の進行は上書きされます。')) {
+        gameStats = { ...gameStats, ...parsed.gameStats };
+        saveGameStats(gameStats);
+        if (Array.isArray(parsed.focusTasks)) {
+          focusTasks = parsed.focusTasks;
+          saveFocusTasks();
+        }
+        progressRestored = true;
+      }
+    }
+
+    rerenderAll();
+    renderDiaryView();
+    renderTrash();
+    renderTodayTasks();
+    if (progressRestored) {
+      renderGameStats();
+      renderFocusCard();
+      renderBattle();
+      renderCompanion();
+    }
+
+    const parts = [];
+    if (added) parts.push(`メモ${added}件`);
+    if (diaryAdded) parts.push(`日記${diaryAdded}件`);
+    if (progressRestored) parts.push('ゲーム進行');
+    toast(parts.length ? `${parts.join('・')}を復元しました` : '新しいデータはありませんでした');
   } catch {
     toast('ファイルを読み込めませんでした');
   }
@@ -3324,14 +3417,29 @@ function setStatus(text, type = '') {
   statusEl.className = `status ${type}`.trim();
 }
 
+// 16kHz/16bitモノラルをbase64で送るので毎秒約42KB。サーバ受信上限20MBの手前で必ず止める
+const MAX_RECORD_SECONDS = 300;
+let recordStartAt = 0;
+let warnedNearLimit = false;
+
 function startTimer() {
   seconds = 0;
+  recordStartAt = Date.now();
+  warnedNearLimit = false;
   timerEl.textContent = '0:00';
   timerInterval = setInterval(() => {
-    seconds++;
+    seconds = Math.floor((Date.now() - recordStartAt) / 1000);
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     timerEl.textContent = `${m}:${String(s).padStart(2, '0')}`;
+    if (!warnedNearLimit && MAX_RECORD_SECONDS - seconds <= 30) {
+      warnedNearLimit = true;
+      toast('あと30秒で自動停止します');
+    }
+    if (seconds >= MAX_RECORD_SECONDS) {
+      toast('録音時間の上限（5分）に達したので停止しました');
+      stopRecording();
+    }
   }, 1000);
 }
 

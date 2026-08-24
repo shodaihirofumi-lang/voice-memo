@@ -18,7 +18,7 @@ app.use(express.json({ limit: '20mb' }));
 app.use(express.static(join(__dirname, 'public')));
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, version: 9, ai: GEMINI_API_KEY ? 'gemini' : 'claude' });
+  res.json({ ok: true, version: 52, ai: GEMINI_API_KEY ? 'gemini' : 'claude' });
 });
 
 const WEEKDAYS_JA = ['日', '月', '火', '水', '木', '金', '土'];
@@ -283,6 +283,7 @@ ${JSON_FORMAT_SPEC}`,
       organized = {
         title: '音声メモ',
         summary: text.slice(0, 80),
+        workspace: 'private',
         categories: { notes: [{ text, due: null, done: false }] },
       };
     }

@@ -1867,31 +1867,31 @@ header {
 }
 .dex-item.locked .dex-count { color: var(--text-3); }
 
-/* ===== 活動カレンダー ===== */
-.cal-grid {
+/* ===== 活動カレンダー（予定タブの .cal-* と衝突させないため heat-* ） ===== */
+.heat-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 4px;
   margin-bottom: 0.6rem;
 }
-.cal-cell {
+.heat-cell {
   aspect-ratio: 1;
   border-radius: 3px;
   background: var(--surface-2);
 }
-.cal-cell.lv1 { background: rgba(74,222,128,0.3); }
-.cal-cell.lv2 { background: rgba(74,222,128,0.55); }
-.cal-cell.lv3 { background: rgba(74,222,128,0.8); }
-.cal-cell.lv4 { background: #4ade80; }
-.cal-cell.today { box-shadow: 0 0 0 2px var(--accent); }
-.cal-legend {
+.heat-cell.lv1 { background: rgba(74,222,128,0.3); }
+.heat-cell.lv2 { background: rgba(74,222,128,0.55); }
+.heat-cell.lv3 { background: rgba(74,222,128,0.8); }
+.heat-cell.lv4 { background: #4ade80; }
+.heat-cell.today { box-shadow: 0 0 0 2px var(--accent); }
+.heat-legend {
   display: flex;
   align-items: center;
   gap: 4px;
   font-size: 0.66rem;
   color: var(--text-3);
 }
-.cal-legend .cal-cell { width: 12px; height: 12px; aspect-ratio: auto; }
+.heat-legend .heat-cell { width: 12px; height: 12px; aspect-ratio: auto; }
 
 /* ===== ポモドーロ（集中モード）===== */
 .pomodoro-card {
