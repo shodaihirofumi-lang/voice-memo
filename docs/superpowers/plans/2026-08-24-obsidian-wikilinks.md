@@ -407,52 +407,50 @@ function vocabHint(vocab) {
 }
 ```
 
-- [ ] **Step 5: `/api/organize` で `vocab` を受け取る**
+- [ ] **Step 5: 両ハンドラで `vocab` を受け取る**
 
-`server.js` の `/api/organize` ハンドラ内、以下の行:
+**注意:** `const text = ((req.body && req.body.text) || '').trim();` という行は `/api/organize` と `/api/append` の**両方**に存在する。片方だけを狙って編集しようとすると誤爆するので、以下は**2行セット**をアンカーにすること。
+
+`/api/organize` 側。次の2行:
 
 ```js
   const text = ((req.body && req.body.text) || '').trim();
+  if (!text) {
 ```
 
-の**直後**に1行足す。
+を、次の3行に置き換える（`if (!text) {` の行はそのまま残す）。
 
 ```js
+  const text = ((req.body && req.body.text) || '').trim();
   const vocab = (req.body && req.body.vocab) || [];
+  if (!text) {
 ```
 
-同じハンドラ内のプロンプト末尾、以下の部分:
-
-```js
-${JSON_FORMAT_SPEC}`,
-      1500
-    );
-```
-
-これは `/api/organize` と `/api/append` の両方に現れる。**`/api/organize` 側**（`- 「眠い」「お腹が減った」…` の直後にあるもので、プロンプト冒頭が `以下の音声メモを分析して` のもの）を次に置き換える。
-
-```js
-${vocabHint(vocab)}
-${JSON_FORMAT_SPEC}`,
-      1500
-    );
-```
-
-- [ ] **Step 6: `/api/append` で `vocab` を受け取る**
-
-`server.js` の `/api/append` ハンドラ内、以下の行:
+`/api/append` 側。次の行:
 
 ```js
   const existing = (req.body && req.body.organized) || null;
 ```
 
-の**直後**に1行足す。
+の**直後**に1行足す（この行は `/api/append` にしか無いので一意）。
 
 ```js
   const vocab = (req.body && req.body.vocab) || [];
 ```
 
-同じハンドラ内、プロンプト冒頭が `既存の音声メモの整理結果に、` のものの末尾を、次に置き換える。
+- [ ] **Step 6: 両方のプロンプトに `vocabHint` を差し込む**
+
+以下の3行ブロックは `server.js` に**ちょうど2回**現れ（`/api/organize` と `/api/append`）、**どちらも同じ変更が必要**。したがって片方を選ぶ必要はなく、**2箇所とも同一に置換する**こと。
+
+置換前（2箇所）:
+
+```js
+${JSON_FORMAT_SPEC}`,
+      1500
+    );
+```
+
+置換後（2箇所とも）:
 
 ```js
 ${vocabHint(vocab)}
@@ -460,6 +458,14 @@ ${JSON_FORMAT_SPEC}`,
       1500
     );
 ```
+
+置換後、次のコマンドで**2箇所とも**変わったことを確認する。
+
+```bash
+grep -c 'vocabHint(vocab)' server.js
+```
+
+Expected: `2`
 
 - [ ] **Step 7: 構文チェック**
 
