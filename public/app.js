@@ -3344,6 +3344,55 @@ async function addToTodoist(memo, btn) {
   }
 }
 
+// ===== Obsidian連携 =====
+
+// カテゴリ→Markdown記法。デイリーノートでは行動可能な項目を上に置きたいので、
+// 画面表示に使う CATEGORY_CONFIG の並びではなくこの順で出力する
+const OBSIDIAN_CAT_ORDER = [
+  { key: 'tasks',     checkbox: true,  prefix: '' },
+  { key: 'reminders', checkbox: true,  prefix: '🔔 ' },
+  { key: 'shopping',  checkbox: true,  prefix: '🛒 ' },
+  { key: 'ideas',     checkbox: false, prefix: '💡 ' },
+  { key: 'notes',     checkbox: false, prefix: '' },
+];
+
+// 期限・優先度は Obsidian Tasks プラグインの記法。未導入でも絵文字＋日付として読める
+function obsidianItemLine(item, conf) {
+  const bullet = conf.checkbox ? (item.done ? '- [x] ' : '- [ ] ') : '- ';
+  let line = bullet + conf.prefix + String(item.text || '').trim();
+  if (item.due) line += ` 📅 ${item.due}`;
+  if (item.priority === 'high') line += ' ⏫';
+  else if (item.priority === 'medium') line += ' 🔼';
+  return line;
+}
+
+// メモ1件をデイリーノート追記用のMarkdownにする。送る内容がなければ '' を返す。
+// 文字起こし全文は含めない（デイリーノートが読みにくくなり、URL長も押し上げるため）
+function memoToMarkdown(memo) {
+  const o = (memo && memo.organized) || {};
+  const cats = o.categories || {};
+  const summary = String(o.summary || '').trim();
+
+  const lines = [];
+  for (const conf of OBSIDIAN_CAT_ORDER) {
+    for (const item of cats[conf.key] || []) {
+      if (item && String(item.text || '').trim()) lines.push(obsidianItemLine(item, conf));
+    }
+  }
+  // title は既定値 '音声メモ' が入りうるので、中身の有無の判定には使わない
+  if (!summary && lines.length === 0) return '';
+
+  const d = new Date(memo.ts || Date.now());
+  const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const title = String(o.title || '').trim() || '音声メモ';
+
+  // 先頭の空行は、追記先の既存内容と行が繋がらないようにするため
+  let md = `\n## ${time} ${title}\n`;
+  if (summary) md += `${summary}\n`;
+  if (lines.length) md += `\n${lines.join('\n')}\n`;
+  return md;
+}
+
 // ===== 設定 =====
 function refreshTokenStatus() {
   const saved = !!localStorage.getItem(TOKEN_KEY);
