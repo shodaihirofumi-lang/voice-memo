@@ -77,9 +77,9 @@ function applyWikiLinks(text, terms) {
   let out = String(text || '');
   if (!out || !Array.isArray(terms) || terms.length === 0) return out;
 
-  // 長い語を先に処理する（「ABC」より「ABCプロジェクト」を優先するため）
-  const sorted = terms
-    .map((t) => String(t || '').trim())
+  // 重複を除いてから、長い語を先に処理する（「ABC」より「ABCプロジェクト」を優先するため）。
+  // 重複除去がないと、登録語とAI抽出語が同じ場合に同一語が2箇所リンクされてしまう
+  const sorted = [...new Set(terms.map((t) => String(t || '').trim()))]
     .filter((t) => t && !WIKILINK_UNSAFE_RE.test(t))
     .sort((a, b) => b.length - a.length);
 
@@ -111,7 +111,7 @@ function applyWikiLinks(text, terms) {
 Run: `node --check public/app.js`
 Expected: エラー出力なし（終了コード 0）
 
-- [ ] **Step 3: ブラウザ検証 — 11ケース**
+- [ ] **Step 3: ブラウザ検証 — 12ケース**
 
 「ブラウザ検証の共通手順」に従い、以下を評価する。
 
@@ -129,6 +129,7 @@ Expected: エラー出力なし（終了コード 0）
     ['リンク後に別語', ['[[ABC]]と田中さん', ['ABC','田中さん']],         '[[ABC]]と[[田中さん]]'],
     ['空文字',         ['', ['x']],                                       ''],
     ['null text',      [null, ['x']],                                     ''],
+    ['重複語',         ['田中さんと田中さんが会議', ['田中さん','田中さん']], '[[田中さん]]と田中さんが会議'],
   ];
   const results = cases.map(([name, args, want]) => {
     const got = applyWikiLinks(...args);
@@ -840,7 +841,7 @@ git commit -m "chore: ウィキリンク対応リリースに向けてv54にバ�
 
 **2. Placeholder scan**
 
-「TBD」「後で実装」「適切にエラー処理」等は不在。全コードステップに実際のコードを記載済み。Task 1 の実装は本計画作成前に Node で11ケース実行して通過を確認済み。
+「TBD」「後で実装」「適切にエラー処理」等は不在。全コードステップに実際のコードを記載済み。Task 1 の実装は本計画作成前に Node で11ケース実行して通過を確認済み。実行中のレビューで重複語の欠陥が判明したため、重複除去と12ケース目を追加した。
 
 **3. Type consistency**
 
