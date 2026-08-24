@@ -1365,6 +1365,17 @@ function saveTrash(t) {
 
 let trash = loadTrash();
 
+// Obsidian連携: 送信済みメモIDの一覧。memoBodyHTML など描画系の関数が
+// このセクションより手前で呼ばれても参照できるよう、他のstate宣言の近くに置く
+const OBSIDIAN_SENT_KEY = 'voiceMemoObsidianSent';
+
+let obsidianSent = (() => {
+  try {
+    const s = JSON.parse(localStorage.getItem(OBSIDIAN_SENT_KEY));
+    return Array.isArray(s) ? s : [];
+  } catch { return []; }
+})();
+
 // ===== 画面切替 =====
 document.querySelectorAll('.nav-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -1755,6 +1766,8 @@ async function appendToMemo(id, text) {
     memo.organized = data.organized;
     memo.transcription = (memo.transcription ? memo.transcription + '\n' : '') + text;
     saveMemos(memos);
+    // 追記でorganizedが差し替わったので、Obsidianへの送信済み表示は一旦解除する
+    unmarkObsidianSent(memo.id);
 
     liveEl.classList.add('hidden');
     currentResultId = memo.id;
@@ -3178,16 +3191,17 @@ document.getElementById('exportBtn').addEventListener('click', () => {
     toast('書き出すデータがありません');
     return;
   }
-  // v1 は memos だけだった。v2 で日記・ゴミ箱・ゲーム進行も含める
+  // v1 は memos だけだった。v2 で日記・ゴミ箱・ゲーム進行も含める。v3 でObsidian送信履歴も含める
   const data = {
     app: 'voice-memo',
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
     memos,
     diaries,
     trash,
     gameStats,
     focusTasks,
+    obsidianSent,
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -3244,6 +3258,17 @@ importFileEl.addEventListener('change', async () => {
       }
       trash = [...tmap.values()].sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0)).slice(0, 20);
       saveTrash(trash);
+    }
+
+    // Obsidian送信履歴（IDの配列。重複はスキップしてマージ）
+    if (Array.isArray(parsed.obsidianSent)) {
+      const sset = new Set(obsidianSent);
+      for (const id of parsed.obsidianSent) {
+        if (id != null) sset.add(id);
+      }
+      obsidianSent = [...sset];
+      if (obsidianSent.length > 500) obsidianSent = obsidianSent.slice(-500);
+      persist(OBSIDIAN_SENT_KEY, obsidianSent, 'Obsidian送信履歴');
     }
 
     // ゲーム進行はマージできない（上書き）ので必ず確認する
@@ -3459,27 +3484,28 @@ async function prepareObsidianSend(memo) {
   return { ok: true, uri: buildObsidianDailyURI({ clipboard: true }), mode: 'clipboard', markdown: md };
 }
 
-const OBSIDIAN_SENT_KEY = 'voiceMemoObsidianSent';
-
 // 起動だけを切り出しておく。window.location は再定義できない（Chromeで TypeError）ため、
 // 検証時はこの関数を差し替えて起動先URIを捕まえる
 function openObsidianURI(uri) {
   window.location.href = uri;
 }
 
-let obsidianSent = (() => {
-  try {
-    const s = JSON.parse(localStorage.getItem(OBSIDIAN_SENT_KEY));
-    return Array.isArray(s) ? s : [];
-  } catch { return []; }
-})();
-
+// OBSIDIAN_SENT_KEY と obsidianSent 本体は他のstate宣言と一緒に手前で定義している
 function isObsidianSent(id) { return obsidianSent.includes(id); }
 
 function markObsidianSent(id) {
   if (obsidianSent.includes(id)) return;
   obsidianSent.push(id);
   if (obsidianSent.length > 500) obsidianSent = obsidianSent.slice(-500);
+  persist(OBSIDIAN_SENT_KEY, obsidianSent, 'Obsidian送信履歴');
+}
+
+// メモへの追記・再編集で organized が丸ごと差し替わった場合に呼ぶ。
+// 「送信済み」表示のまま追記内容が未送信になるのを防ぐ
+function unmarkObsidianSent(id) {
+  const idx = obsidianSent.indexOf(id);
+  if (idx === -1) return;
+  obsidianSent.splice(idx, 1);
   persist(OBSIDIAN_SENT_KEY, obsidianSent, 'Obsidian送信履歴');
 }
 
