@@ -3191,10 +3191,10 @@ document.getElementById('exportBtn').addEventListener('click', () => {
     toast('書き出すデータがありません');
     return;
   }
-  // v1 は memos だけだった。v2 で日記・ゴミ箱・ゲーム進行も含める。v3 でObsidian送信履歴も含める
+  // v1 は memos だけだった。v2 で日記・ゴミ箱・ゲーム進行も含める。v3 でObsidian送信履歴も含める。v4 でリンク語も含める
   const data = {
     app: 'voice-memo',
-    version: 3,
+    version: 4,
     exportedAt: new Date().toISOString(),
     memos,
     diaries,
@@ -3202,6 +3202,7 @@ document.getElementById('exportBtn').addEventListener('click', () => {
     gameStats,
     focusTasks,
     obsidianSent,
+    linkWords: getLinkWords(),
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -3269,6 +3270,13 @@ importFileEl.addEventListener('change', async () => {
       obsidianSent = [...sset];
       if (obsidianSent.length > 500) obsidianSent = obsidianSent.slice(-500);
       persist(OBSIDIAN_SENT_KEY, obsidianSent, 'Obsidian送信履歴');
+    }
+
+    // リンク語（重複はスキップしてマージ）
+    if (Array.isArray(parsed.linkWords)) {
+      const merged = [...new Set([...getLinkWords(), ...parsed.linkWords.map((w) => String(w || '').trim()).filter((w) => w)])];
+      persist(LINK_WORDS_KEY, merged, 'リンク語');
+      refreshLinkWordsStatus();
     }
 
     // ゲーム進行はマージできない（上書き）ので必ず確認する
@@ -3493,6 +3501,32 @@ document.getElementById('clearVaultBtn')?.addEventListener('click', () => {
   toast('削除しました');
 });
 
+const LINK_WORDS_KEY = 'voiceMemoLinkWords';
+
+function getLinkWords() {
+  try {
+    const s = JSON.parse(localStorage.getItem(LINK_WORDS_KEY));
+    return Array.isArray(s) ? s : [];
+  } catch { return []; }
+}
+
+function refreshLinkWordsStatus() {
+  const el = document.getElementById('linkWordsStatus');
+  const ta = document.getElementById('obsidianLinkWords');
+  if (!el) return;
+  const words = getLinkWords();
+  el.textContent = words.length ? `✓ ${words.length}語を登録中` : '（未登録）';
+  if (ta) ta.value = words.join('\n');
+}
+
+document.getElementById('saveLinkWordsBtn')?.addEventListener('click', () => {
+  const raw = document.getElementById('obsidianLinkWords')?.value || '';
+  const words = [...new Set(raw.split('\n').map((w) => w.trim()).filter((w) => w))];
+  persist(LINK_WORDS_KEY, words, 'リンク語');
+  refreshLinkWordsStatus();
+  toast(words.length ? `${words.length}語を保存しました` : 'リンク語を空にしました');
+});
+
 // Android実機での実効上限は未検証。超えたらクリップボード経由に切り替える。
 // 実機で長いメモを試した結果を見てこの値を調整する。
 // 日本語は encodeURIComponent で1文字あたり9文字（%XX%XX%XX）になるため、
@@ -3600,6 +3634,7 @@ document.getElementById('clearTokenBtn').addEventListener('click', () => {
 
 refreshTokenStatus();
 refreshVaultStatus();
+refreshLinkWordsStatus();
 setStatus('タップして録音');
 applyTheme(currentTheme);
 renderWorkspaceTabs();

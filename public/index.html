@@ -177,6 +177,12 @@
             <button id="clearVaultBtn" class="pill-btn">削除</button>
           </div>
           <p id="vaultStatus" class="token-status"></p>
+          <p class="settings-help">リンクにしたい語を1行に1つ登録すると、Obsidianへ送るときに [[語]] へ自動変換されます。ここに登録した語は古いメモにも効きます。</p>
+          <textarea id="obsidianLinkWords" class="text-input text-area" rows="4" placeholder="田中さん&#10;ABCプロジェクト" autocapitalize="none" autocorrect="off" spellcheck="false"></textarea>
+          <div class="settings-actions">
+            <button id="saveLinkWordsBtn" class="pill-btn primary">リンク語を保存</button>
+          </div>
+          <p id="linkWordsStatus" class="token-status"></p>
         </div>
 
         <div class="glass-card settings-card">
