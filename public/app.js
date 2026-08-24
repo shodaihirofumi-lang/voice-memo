@@ -1843,6 +1843,8 @@ function memoBodyHTML(memo, opts) {
     html += `<button class="pill-btn" data-action="edit" data-id="${memo.id}">編集</button>`;
     const alreadyInDiary = diaries.some((d) => d.memoId === memo.id);
     html += `<button class="pill-btn${alreadyInDiary ? ' diary-added' : ''}" data-action="diary-save" data-id="${memo.id}">${alreadyInDiary ? '📔 日記済' : '📔 日記'}</button>`;
+    const sentToObsidian = isObsidianSent(memo.id);
+    html += `<button class="pill-btn${sentToObsidian ? ' obsidian-sent' : ''}" data-action="obsidian" data-id="${memo.id}">${sentToObsidian ? '🔮 送信済' : '🔮 Obsidian'}</button>`;
     html += `<button class="pill-btn" data-action="share" data-id="${memo.id}">共有</button>`;
     if (opts && opts.deletable) {
       html += `<button class="pill-btn danger" data-action="delete" data-id="${memo.id}">削除</button>`;
@@ -2880,6 +2882,7 @@ document.addEventListener('click', (e) => {
     return;
   }
 
+  if (action === 'obsidian') handleObsidianSend(memo, btn);
   if (action === 'share') shareMemo(memo);
   if (action === 'todoist') addToTodoist(memo, btn);
 
@@ -3454,6 +3457,50 @@ async function prepareObsidianSend(memo) {
     return { ok: false, reason: 'clipboard' };
   }
   return { ok: true, uri: buildObsidianDailyURI({ clipboard: true }), mode: 'clipboard', markdown: md };
+}
+
+const OBSIDIAN_SENT_KEY = 'voiceMemoObsidianSent';
+
+// 起動だけを切り出しておく。window.location は再定義できない（Chromeで TypeError）ため、
+// 検証時はこの関数を差し替えて起動先URIを捕まえる
+function openObsidianURI(uri) {
+  window.location.href = uri;
+}
+
+let obsidianSent = (() => {
+  try {
+    const s = JSON.parse(localStorage.getItem(OBSIDIAN_SENT_KEY));
+    return Array.isArray(s) ? s : [];
+  } catch { return []; }
+})();
+
+function isObsidianSent(id) { return obsidianSent.includes(id); }
+
+function markObsidianSent(id) {
+  if (obsidianSent.includes(id)) return;
+  obsidianSent.push(id);
+  if (obsidianSent.length > 500) obsidianSent = obsidianSent.slice(-500);
+  persist(OBSIDIAN_SENT_KEY, obsidianSent, 'Obsidian送信履歴');
+}
+
+// Obsidianが実際に追記できたかはWeb側から知る手段がないので、
+// 送信済みは「起動した時点」で楽観的に付ける。起動しなかった場合に備えて再送を許す
+async function handleObsidianSend(memo, btn) {
+  if (isObsidianSent(memo.id) && !confirm('このメモは送信済みです。もう一度Obsidianに追記しますか？')) return;
+
+  const r = await prepareObsidianSend(memo);
+  if (!r.ok) {
+    toast(r.reason === 'empty' ? '送る内容がありません' : '内容が長く、クリップボードにも書けませんでした');
+    return;
+  }
+
+  markObsidianSent(memo.id);
+  if (btn) {
+    btn.textContent = '🔮 送信済';
+    btn.classList.add('obsidian-sent');
+  }
+  if (r.mode === 'clipboard') toast('長いのでクリップボード経由で送ります');
+  openObsidianURI(r.uri);
 }
 
 // ===== 設定 =====

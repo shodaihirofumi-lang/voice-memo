@@ -2382,3 +2382,6 @@ header {
   html { font-size: 17px; }
   .app { padding-left: 1rem; padding-right: 1rem; }
 }
+
+/* 日記の .diary-added と違い pointer-events は殺さない（再送できる必要があるため） */
+.pill-btn.obsidian-sent { opacity: 0.55; }
