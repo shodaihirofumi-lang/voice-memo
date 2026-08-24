@@ -129,6 +129,19 @@ function normalizeItems(arr) {
     .filter((it) => it && it.text);
 }
 
+// AIが返した固有名詞リストを正規化する。壊れた形で返ってきても落とさず空配列にする
+function normalizeEntities(arr) {
+  if (!Array.isArray(arr)) return [];
+  const out = [];
+  for (const e of arr) {
+    const t = String(e == null ? '' : e).trim();
+    if (!t || t.length > 40) continue;
+    if (!out.includes(t)) out.push(t);
+    if (out.length >= 5) break;
+  }
+  return out;
+}
+
 function parseOrganized(rawText) {
   const jsonMatch = rawText.match(/\{[\s\S]*\}/);
   const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : rawText);
@@ -138,6 +151,7 @@ function parseOrganized(rawText) {
     title: String(parsed.title || '音声メモ').slice(0, 40),
     summary: String(parsed.summary || ''),
     workspace: ws,
+    entities: normalizeEntities(parsed.entities),
     categories: {},
   };
   for (const key of ['tasks', 'shopping', 'ideas', 'reminders', 'notes']) {
@@ -152,6 +166,7 @@ const JSON_FORMAT_SPEC = `以下のJSON形式のみで返してください（Ma
   "title": "20文字以内のタイトル",
   "summary": "1〜2文の要約",
   "workspace": "work",
+  "entities": ["田中さん", "ABCプロジェクト"],
   "categories": {
     "tasks": [{"text": "やること", "due": null, "done": false, "priority": "high"}],
     "shopping": [{"text": "買う物", "due": null, "done": false, "priority": null}],
@@ -163,7 +178,19 @@ const JSON_FORMAT_SPEC = `以下のJSON形式のみで返してください（Ma
 
 - workspace: 内容が仕事・業務・ビジネス関連なら "work"、個人・家族・趣味・日常なら "private"
 - priorityはtasks・remindersのみ設定: "high"=今日中・緊急、"medium"=近いうちに、null=特に急がない
+- entities: 本文に出てくる固有名詞（人名・組織名・案件名/プロジェクト名・場所名・製品名）を最大5つ。「牛乳」「会議」「資料」のような一般名詞は入れないでください。本文に現れる表記のまま返してください。該当がなければ空配列。
 - 空のカテゴリは省略。JSONのみ返してください。`;
+
+// 既出のキーワードをAIに渡し、同じ対象には同じ表記を使わせる（[[田中さん]]と[[田中]]への分裂を防ぐ）
+function vocabHint(vocab) {
+  if (!Array.isArray(vocab)) return '';
+  const list = vocab.map((v) => String(v == null ? '' : v).trim()).filter((v) => v).slice(0, 100);
+  if (list.length === 0) return '';
+  return `
+既出のキーワード一覧: ${list.join('、')}
+- entities は、同じ対象を指す語がこの一覧にあれば、一覧の表記をそのまま使ってください。
+`;
+}
 
 // ===== 音声文字起こし（Gemini）=====
 
@@ -249,6 +276,7 @@ app.post('/api/transcribe', async (req, res) => {
 
 app.post('/api/organize', async (req, res) => {
   const text = ((req.body && req.body.text) || '').trim();
+  const vocab = (req.body && req.body.vocab) || [];
   if (!text) {
     return res.status(400).json({ error: 'テキストが必要です' });
   }
@@ -272,6 +300,7 @@ ${text}
 - "done" は常に false にしてください
 - 「眠い」「お腹が減った」「疲れた」「寒い」など、感情・体調・独り言のような記録価値のない一言は整理に含めないでください
 
+${vocabHint(vocab)}
 ${JSON_FORMAT_SPEC}`,
       1500
     );
@@ -300,6 +329,7 @@ ${JSON_FORMAT_SPEC}`,
 app.post('/api/append', async (req, res) => {
   const text = ((req.body && req.body.text) || '').trim();
   const existing = (req.body && req.body.organized) || null;
+  const vocab = (req.body && req.body.vocab) || [];
   if (!text || !existing || typeof existing !== 'object') {
     return res.status(400).json({ error: 'データが不足しています' });
   }
@@ -328,6 +358,7 @@ ${text}
 - title と summary は全体を反映して更新してください
 - 「眠い」「お腹が減った」「疲れた」「寒い」など、感情・体調・独り言のような記録価値のない一言は整理に含めないでください
 
+${vocabHint(vocab)}
 ${JSON_FORMAT_SPEC}`,
       1500
     );
