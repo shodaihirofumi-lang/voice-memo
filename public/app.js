@@ -3394,6 +3394,44 @@ function obsidianItemLine(item, conf) {
   return line;
 }
 
+// Obsidianのリンク記法を壊す文字。これらを含む語はリンク化しない
+const WIKILINK_UNSAFE_RE = /[\[\]|#^]/;
+
+// text 中の terms を [[語]] に置換する。各語につき最初の1回だけ。
+// すでに [[...]] の中にある部分には手を触れない。
+// 日本語には単語境界がないので、形態素解析は使わず単純な部分文字列マッチにしている。
+function applyWikiLinks(text, terms) {
+  let out = String(text || '');
+  if (!out || !Array.isArray(terms) || terms.length === 0) return out;
+
+  // 長い語を先に処理する（「ABC」より「ABCプロジェクト」を優先するため）
+  const sorted = terms
+    .map((t) => String(t || '').trim())
+    .filter((t) => t && !WIKILINK_UNSAFE_RE.test(t))
+    .sort((a, b) => b.length - a.length);
+
+  for (const term of sorted) {
+    // 既存の [[...]] の範囲を先に洗い出し、その内側にはマッチさせない
+    const spans = [];
+    const linkRe = /\[\[[^\]]*\]\]/g;
+    let m;
+    while ((m = linkRe.exec(out)) !== null) spans.push([m.index, m.index + m[0].length]);
+
+    let from = 0;
+    for (;;) {
+      const idx = out.indexOf(term, from);
+      if (idx === -1) break;
+      const end = idx + term.length;
+      if (!spans.some(([s, e]) => idx < e && end > s)) {
+        out = out.slice(0, idx) + '[[' + term + ']]' + out.slice(end);
+        break; // 各語につき最初の1回だけ
+      }
+      from = idx + 1;
+    }
+  }
+  return out;
+}
+
 // メモ1件をデイリーノート追記用のMarkdownにする。送る内容がなければ '' を返す。
 // 文字起こし全文は含めない（デイリーノートが読みにくくなり、URL長も押し上げるため）
 function memoToMarkdown(memo) {
