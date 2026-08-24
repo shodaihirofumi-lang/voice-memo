@@ -169,6 +169,17 @@
         </div>
 
         <div class="glass-card settings-card">
+          <h3 class="card-label">Obsidian連携</h3>
+          <p class="settings-help">メモを「🔮 Obsidian」ボタンで、その日のデイリーノートに追記できます。保存先やファイル名はObsidian側のデイリーノート設定がそのまま使われます。vault名は空欄でも動作し、その場合は最後に開いたvaultが使われます。</p>
+          <input type="text" id="obsidianVault" class="text-input" placeholder="vault名（任意）">
+          <div class="settings-actions">
+            <button id="saveVaultBtn" class="pill-btn primary">保存</button>
+            <button id="clearVaultBtn" class="pill-btn">削除</button>
+          </div>
+          <p id="vaultStatus" class="token-status"></p>
+        </div>
+
+        <div class="glass-card settings-card">
           <h3 class="card-label">ゴミ箱</h3>
           <p class="settings-help">削除したメモは20件まで保管され、ここから復元できます。</p>
           <div id="trashList"></div>

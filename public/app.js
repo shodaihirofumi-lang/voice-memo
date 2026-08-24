@@ -3393,6 +3393,35 @@ function memoToMarkdown(memo) {
   return md;
 }
 
+const OBSIDIAN_VAULT_KEY = 'obsidianVault';
+
+function getObsidianVault() {
+  return (localStorage.getItem(OBSIDIAN_VAULT_KEY) || '').trim();
+}
+
+function refreshVaultStatus() {
+  const el = document.getElementById('vaultStatus');
+  const input = document.getElementById('obsidianVault');
+  if (!el) return;
+  const v = getObsidianVault();
+  el.textContent = v ? `✓ vault: ${v}` : '（最後に開いたvaultを使用）';
+  if (input) input.value = v;
+}
+
+document.getElementById('saveVaultBtn')?.addEventListener('click', () => {
+  const v = (document.getElementById('obsidianVault')?.value || '').trim();
+  if (v) localStorage.setItem(OBSIDIAN_VAULT_KEY, v);
+  else localStorage.removeItem(OBSIDIAN_VAULT_KEY);
+  refreshVaultStatus();
+  toast(v ? '保存しました' : 'vault名を空にしました');
+});
+
+document.getElementById('clearVaultBtn')?.addEventListener('click', () => {
+  localStorage.removeItem(OBSIDIAN_VAULT_KEY);
+  refreshVaultStatus();
+  toast('削除しました');
+});
+
 // ===== 設定 =====
 function refreshTokenStatus() {
   const saved = !!localStorage.getItem(TOKEN_KEY);
@@ -3418,6 +3447,7 @@ document.getElementById('clearTokenBtn').addEventListener('click', () => {
 });
 
 refreshTokenStatus();
+refreshVaultStatus();
 setStatus('タップして録音');
 applyTheme(currentTheme);
 renderWorkspaceTabs();
