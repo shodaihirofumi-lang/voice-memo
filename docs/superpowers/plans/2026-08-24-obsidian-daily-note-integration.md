@@ -453,7 +453,7 @@ git commit -m "feat(obsidian): daily URIの組み立てとURL長のクリップ�
 
 **Interfaces:**
 - Consumes: `prepareObsidianSend()`（Task 3）、既存の `persist()` / `toast()` / `findMemo()`
-- Produces: `isObsidianSent(id) -> boolean`、`markObsidianSent(id) -> void`、`handleObsidianSend(memo, btn) -> Promise<void>`
+- Produces: `openObsidianURI(uri) -> void`、`isObsidianSent(id) -> boolean`、`markObsidianSent(id) -> void`、`handleObsidianSend(memo, btn) -> Promise<void>`
 
 - [ ] **Step 1: 送信済みリストと送信ハンドラを追加する**
 
@@ -461,6 +461,12 @@ Obsidian セクションの末尾に追加する。
 
 ```js
 const OBSIDIAN_SENT_KEY = 'voiceMemoObsidianSent';
+
+// 起動だけを切り出しておく。window.location は再定義できない（Chromeで TypeError）ため、
+// 検証時はこの関数を差し替えて起動先URIを捕まえる
+function openObsidianURI(uri) {
+  window.location.href = uri;
+}
 
 let obsidianSent = (() => {
   try {
@@ -495,7 +501,7 @@ async function handleObsidianSend(memo, btn) {
     btn.classList.add('obsidian-sent');
   }
   if (r.mode === 'clipboard') toast('長いのでクリップボード経由で送ります');
-  window.location.href = r.uri;
+  openObsidianURI(r.uri);
 }
 ```
 
@@ -545,7 +551,7 @@ Expected: エラー出力なし
 
 - [ ] **Step 6: ブラウザ検証 — ボタンの表示と送信済みの永続化**
 
-ハードリロード後、以下を評価する。`window.location.href` への代入で外部アプリ起動が走らないよう、検証中だけ差し替える。
+ハードリロード後、以下を評価する。外部アプリ起動が走らないよう、検証中だけ `openObsidianURI` を差し替える（関数宣言の束縛は再代入できる）。
 
 ```js
 (async () => {
@@ -565,8 +571,8 @@ Expected: エラー出力なし
 (() => {
   const r = {};
   let navigated = null;
-  const orig = Object.getOwnPropertyDescriptor(window.Location.prototype, 'href');
-  Object.defineProperty(window.location, 'href', { configurable: true, set(v) { navigated = v; }, get() { return orig.get.call(window.location); } });
+  const realOpen = openObsidianURI;
+  openObsidianURI = (uri) => { navigated = uri; };   // 起動を捕まえるだけにする
 
   document.querySelector('.nav-btn[data-view="history"]').click();
   const btn = document.querySelector('[data-action="obsidian"][data-id="mtest9"]');
@@ -578,7 +584,7 @@ Expected: エラー出力なし
     r.buttonLabelAfter = document.querySelector('[data-action="obsidian"][data-id="mtest9"]').textContent;
     r.sentStored = JSON.parse(localStorage.getItem('voiceMemoObsidianSent') || '[]');
     r.sentFlag = isObsidianSent('mtest9');
-    delete window.location.href;
+    openObsidianURI = realOpen;
     return JSON.stringify(r);
   });
 })()
