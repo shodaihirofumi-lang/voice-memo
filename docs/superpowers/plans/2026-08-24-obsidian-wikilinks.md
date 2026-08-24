@@ -463,10 +463,12 @@ ${JSON_FORMAT_SPEC}`,
 置換後、次のコマンドで**2箇所とも**変わったことを確認する。
 
 ```bash
-grep -c 'vocabHint(vocab)' server.js
+grep -n 'vocabHint' server.js
 ```
 
-Expected: `2`
+Expected: **3行**が出ること。内訳は「`function vocabHint(vocab) {` の定義が1行」＋「`${vocabHint(vocab)}` の呼び出しが2行」。
+
+注意: `grep -c 'vocabHint(vocab)'` は使わないこと。定義行 `function vocabHint(vocab) {` も部分一致するため `3` になり、`2` を期待すると正しい実装でも失敗したように見える。
 
 - [ ] **Step 7: 構文チェック**
 
@@ -508,43 +510,50 @@ Expected:
 {"normal":["田中さん","ABC"],"notArray":[],"undef":[],"dedupe":["A","B"],"cap5":["1","2","3","4","5"],"dropEmpty":["X"],"dropLong":["Y"]}
 ```
 
-- [ ] **Step 9: 実際に `/api/organize` を呼んで確認する（回帰確認を含む）**
+- [ ] **Step 9: `parseOrganized()` の回帰確認（APIキー不要）**
 
-「ブラウザ検証の共通手順」でプレビューを起動し、以下を評価する。**これは実際に AI を1回呼ぶ**（費用は1円未満）。
+**ローカルの `.env` には本物の API キーが入っていない**（`.env.example` のプレースホルダのままで、`ANTHROPIC_API_KEY` は10文字しかない。本番のキーは Render の環境変数側にある）。したがって実際に AI を呼ぶ検証はローカルでは行えない。
 
-```js
-(async () => {
-  const r = await fetch('/api/organize', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      text: '田中さんとABCプロジェクトの打ち合わせをした。金曜までに見積もりを出す。あと牛乳を買う。',
-      vocab: ['田中さん'],
-    }),
-  });
-  const d = await r.json();
-  return JSON.stringify({
-    status: r.status,
-    ok: d.success,
-    title: d.organized && d.organized.title,
-    summary: (d.organized && d.organized.summary || '').slice(0, 30),
-    hasTasks: !!(d.organized && d.organized.categories && d.organized.categories.tasks),
-    hasShopping: !!(d.organized && d.organized.categories && d.organized.categories.shopping),
-    workspace: d.organized && d.organized.workspace,
-    entities: d.organized && d.organized.entities,
-    error: d.error,
-  }, null, 1);
-})()
+代わりに、変更した `parseOrganized()` を **`server.js` の実ファイルから自動抽出して**回帰確認する。手で写すと写し間違いが混入するため、抽出はスクリプトに任せる。
+
+生成スクリプトは SDD ワークスペースに用意済み（リポジトリ本体には追加しない）。リポジトリのルートで次を実行する。
+
+```bash
+WS=.superpowers/sdd/2026-08-24-obsidian-wikilinks
+node "$WS/parsecheck-gen.mjs" server.js "$WS/parsecheck.mjs" && node "$WS/parsecheck.mjs"
 ```
 
-Expected（**回帰確認が主目的**）:
-- `status` === `200`、`ok` === `true`
-- `title` が空でない文字列 ← **既存機能が壊れていないこと**
-- `hasTasks` === `true`（見積もりを出す） ← **既存機能が壊れていないこと**
-- `hasShopping` === `true`（牛乳） ← **既存機能が壊れていないこと**
-- `workspace` が `"work"` または `"private"` ← **既存機能が壊れていないこと**
-- `entities` が配列で、`田中さん` と `ABCプロジェクト` を含む。`牛乳` を**含まない**
+このスクリプトは `server.js` から `normalizeItems` / `normalizeEntities` / `parseOrganized` の3関数を切り出し、AI の典型的な応答（Markdownコードフェンス付き、`entities` に重複・空文字を含む）を食わせて結果を表示する。
 
-**`status` が 500 で `error` に API キー・残高の話が出た場合は、コードの問題ではなくローカルの `.env` の問題。** その場合は勝手に回避策を入れず、`NEEDS_CONTEXT` として報告すること。
+Expected（**回帰確認が主目的**。`R_` で始まる項目は今回の変更前から動いていたもので、1つでも違えば既存機能を壊している）:
+
+```
+{
+ "R_title": "会議の準備",
+ "R_summary": "明日の定例に向けた資料作成。",
+ "R_workspace": "work",
+ "R_tasksText": "資料を作る",
+ "R_tasksDue": "2026-08-25",
+ "R_tasksPriority": "high",
+ "R_shoppingText": "牛乳",
+ "R_emptyCatOmitted": true,
+ "NEW_entities": [
+  "田中さん",
+  "ABCプロジェクト",
+  "あ"
+ ]
+}
+{"noEnt_entities":[],"noEnt_title":"t","noEnt_tasks":true,"broken_entities":[],"broken_title":"t2"}
+```
+
+確認のポイント:
+
+- `R_*` がすべて上記と一致すること ← **既存の整理機能が壊れていないこと**
+- `NEW_entities` で重複（`田中さん` が2回入力されている）が1つに畳まれ、空文字が除去されていること
+- `noEnt_*`: AI が `entities` を返さなくても `[]` になり、既存フィールドが生きること
+- `broken_*`: `entities` が配列でない壊れた値でも `[]` になり、既存フィールドが生きること
+
+**AI が実際に `entities` を返すかどうかの確認は、本番デプロイ後に実機で行う**（Render の環境変数には有効なキーがある）。AI が返さなかった場合も `[]` に正規化され、登録語だけがリンク化される形に安全に縮退する設計になっているため、これを理由に実装を止める必要はない。
 
 - [ ] **Step 10: コミット**
 
