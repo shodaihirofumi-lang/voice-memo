@@ -1704,7 +1704,7 @@ async function organize(text) {
     const response = await fetch('/api/organize', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, vocab: getLinkVocabulary() }),
     });
     const data = await response.json();
 
@@ -1757,7 +1757,7 @@ async function appendToMemo(id, text) {
     const response = await fetch('/api/append', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, organized: memo.organized }),
+      body: JSON.stringify({ text, organized: memo.organized, vocab: getLinkVocabulary() }),
     });
     const data = await response.json();
 
@@ -3393,9 +3393,11 @@ const OBSIDIAN_CAT_ORDER = [
 ];
 
 // 期限・優先度は Obsidian Tasks プラグインの記法。未導入でも絵文字＋日付として読める
-function obsidianItemLine(item, conf) {
+function obsidianItemLine(item, conf, terms) {
   const bullet = conf.checkbox ? (item.done ? '- [x] ' : '- [ ] ') : '- ';
-  let line = bullet + conf.prefix + String(item.text || '').trim();
+  // リンク化は本文にだけ効かせる。期限や優先度の記法に [[ ]] が混ざらないよう先に処理する
+  const text = applyWikiLinks(String(item.text || '').trim(), terms);
+  let line = bullet + conf.prefix + text;
   if (item.due) line += ` 📅 ${item.due}`;
   if (item.priority === 'high') line += ' ⏫';
   else if (item.priority === 'medium') line += ' 🔼';
@@ -3440,17 +3442,43 @@ function applyWikiLinks(text, terms) {
   return out;
 }
 
+// AIに渡す既出キーワードの一覧。登録語を先に置き、その後メモのentitiesを新しい順。上限100語。
+// 保存はせず毎回算出する（保存すると実体とズレるため）
+function getLinkVocabulary() {
+  const out = [];
+  const seen = new Set();
+  const push = (w) => {
+    const t = String(w || '').trim();
+    if (t && !seen.has(t)) { seen.add(t); out.push(t); }
+  };
+  getLinkWords().forEach(push);
+  for (const m of memos) {
+    const ents = (m.organized && m.organized.entities) || [];
+    if (Array.isArray(ents)) ents.forEach(push);
+    if (out.length >= 100) break;
+  }
+  return out.slice(0, 100);
+}
+
+// このメモでリンク化する語。登録語＋そのメモ自身のentitiesのみ。
+// 全メモの語彙を横断適用すると過剰リンクになるので、あえて広げない
+function memoLinkTerms(memo) {
+  const ents = (memo && memo.organized && memo.organized.entities) || [];
+  return [...getLinkWords(), ...(Array.isArray(ents) ? ents : [])];
+}
+
 // メモ1件をデイリーノート追記用のMarkdownにする。送る内容がなければ '' を返す。
 // 文字起こし全文は含めない（デイリーノートが読みにくくなり、URL長も押し上げるため）
 function memoToMarkdown(memo) {
   const o = (memo && memo.organized) || {};
   const cats = o.categories || {};
-  const summary = String(o.summary || '').trim();
+  const terms = memoLinkTerms(memo);
+  const summary = applyWikiLinks(String(o.summary || '').trim(), terms);
 
   const lines = [];
   for (const conf of OBSIDIAN_CAT_ORDER) {
     for (const item of cats[conf.key] || []) {
-      if (item && String(item.text || '').trim()) lines.push(obsidianItemLine(item, conf));
+      if (item && String(item.text || '').trim()) lines.push(obsidianItemLine(item, conf, terms));
     }
   }
   // title は既定値 '音声メモ' が入りうるので、中身の有無の判定には使わない
