@@ -3414,8 +3414,13 @@ function memoToMarkdown(memo) {
   const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   const title = String(o.title || '').trim() || '音声メモ';
 
+  // obsidian://daily は常に今日のノートに追記されるため、メモの日付が今日でない場合は
+  // 見出しに日付を足しておく（そうしないと過去のメモが今日のノートに日付なしで紛れ込む）
+  const dateISO = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const dateLabel = dateISO === todayISO() ? '' : `${dateISO} `;
+
   // 先頭の空行は、追記先の既存内容と行が繋がらないようにするため
-  let md = `\n## ${time} ${title}\n`;
+  let md = `\n## ${dateLabel}${time} ${title}\n`;
   if (summary) md += `${summary}\n`;
   if (lines.length) md += `\n${lines.join('\n')}\n`;
   return md;
@@ -3451,8 +3456,10 @@ document.getElementById('clearVaultBtn')?.addEventListener('click', () => {
 });
 
 // Android実機での実効上限は未検証。超えたらクリップボード経由に切り替える。
-// 実機で長いメモを試した結果を見てこの値を調整する
-const OBSIDIAN_URL_LIMIT = 2000;
+// 実機で長いメモを試した結果を見てこの値を調整する。
+// 日本語は encodeURIComponent で1文字あたり9文字（%XX%XX%XX）になるため、
+// この値は日本語主体のメモでは実効の約1/9の文字数（このメモ自体の文字数）に相当する
+const OBSIDIAN_URL_LIMIT = 8000;
 
 // 公式ドキュメントの指定どおり、値は encodeURIComponent で URI エンコードする
 function buildObsidianDailyURI(params) {
