@@ -2264,7 +2264,7 @@ header {
   color-scheme: dark;
 }
 .diary-title-input { flex: 1; }
-.diary-textarea { width: 100%; box-sizing: border-box; resize: vertical; margin-bottom: 0.6rem; }
+.diary-textarea { width: 100%; box-sizing: border-box; resize: vertical; margin-bottom: 0.6rem; min-height: 45vh; }
 .diary-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .diary-ai-result {
   margin-top: 0.8rem;
