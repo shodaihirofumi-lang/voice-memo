@@ -2106,6 +2106,7 @@ function autoSaveDiary(memo) {
       entry.formatted = data.content;
       if (data.title) entry.title = data.title;
       if (data.highlights && data.highlights.length) entry.highlights = data.highlights;
+      unmarkObsidianSent(entry.id);
       saveDiaries();
       renderDiaryView();
     }
@@ -3628,6 +3629,7 @@ async function prepareObsidianSendMarkdown(md) {
   return { ok: true, uri: buildObsidianDailyURI({ clipboard: true }), mode: 'clipboard', markdown: md };
 }
 
+// メモ用の薄いラッパー。現在アプリ内からの呼び出しは無いが、検証スニペットから使うため残している
 async function prepareObsidianSend(memo) {
   return prepareObsidianSendMarkdown(memoToMarkdown(memo));
 }
