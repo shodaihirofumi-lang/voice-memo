@@ -2385,3 +2385,6 @@ header {
 
 /* 日記の .diary-added と違い pointer-events は殺さない（再送できる必要があるため） */
 .pill-btn.obsidian-sent { opacity: 0.55; }
+
+/* ノートカードの操作行。ボタン自体は既存の .pill-btn / .pill-btn.obsidian-sent を流用 */
+.notes-card-actions { display: flex; justify-content: flex-end; margin-top: 0.5rem; }

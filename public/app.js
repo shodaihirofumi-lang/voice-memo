@@ -2267,9 +2267,11 @@ function renderNotesView() {
         notes.forEach((it) => { body += `<li>${esc(it.text)}</li>`; });
         body += `</ul>`;
       }
+      const sentObs = isObsidianSent(m.id);
       html += `<div class="notes-card glass-card">
         <div class="notes-card-head"><span class="notes-card-title">${esc(title)}</span><span class="notes-card-time">${timeStr}</span></div>
         ${body}
+        <div class="notes-card-actions"><button class="pill-btn${sentObs ? ' obsidian-sent' : ''}" data-action="obsidian" data-id="${m.id}">${sentObs ? '🔮 送信済' : '🔮 Obsidian'}</button></div>
       </div>`;
     });
     html += `</div>`;
