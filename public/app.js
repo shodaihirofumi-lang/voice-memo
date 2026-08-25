@@ -2159,6 +2159,7 @@ function renderDiaryView() {
           ${entry.title ? `<div class="diary-entry-title">${esc(entry.title)}</div>` : ''}
         </div>
         <div class="diary-entry-btns">
+          <button class="pill-btn${isObsidianSent(entry.id) ? ' obsidian-sent' : ''}" data-diary-obsidian="${entry.id}">${isObsidianSent(entry.id) ? '🔮 送信済' : '🔮 Obsidian'}</button>
           <button class="pill-btn diary-share-btn" data-diary-share="${entry.id}">共有</button>
           <button class="pill-btn danger diary-del-btn" data-diary-del="${entry.id}">削除</button>
         </div>
@@ -2671,6 +2672,13 @@ document.addEventListener('click', (e) => {
   const starBtn = e.target.closest('.focus-star-btn');
   if (starBtn) {
     toggleFocus(starBtn.dataset.focusId, starBtn.dataset.focusCat, starBtn.dataset.focusText);
+    return;
+  }
+
+  const diaryObsBtn = e.target.closest('[data-diary-obsidian]');
+  if (diaryObsBtn) {
+    const entry = diaries.find((d) => d.id === diaryObsBtn.dataset.diaryObsidian);
+    if (entry) handleObsidianSendDiary(entry, diaryObsBtn);
     return;
   }
 
@@ -3500,6 +3508,34 @@ function memoToMarkdown(memo) {
   return md;
 }
 
+// 日記1件をデイリーノート追記用のMarkdownにする。送る内容がなければ '' を返す。
+// 日記は /api/organize を通っていないので entities を持たない。リンクは登録語のみ。
+function diaryToMarkdown(entry) {
+  const e = entry || {};
+  const terms = getLinkWords();
+  // 本文は行ごとに分けず全体で1回だけ処理する（分けると行数分リンクが増える）
+  const body = applyWikiLinks(String(e.formatted || e.text || '').trim(), terms);
+  const hi = (Array.isArray(e.highlights) ? e.highlights : [])
+    .map((h) => String(h || '').trim())
+    .filter((h) => h)
+    .map((h) => `- ✨ ${applyWikiLinks(h, terms)}`);
+
+  // title は空でありうるので、中身の有無の判定には使わない
+  if (!body && hi.length === 0) return '';
+
+  // obsidian://daily は常に今日のノートに追記されるため、今日でなければ見出しに日付を足す
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(e.date || '')) ? e.date : todayISO();
+  const dateLabel = date === todayISO() ? '' : `${date} `;
+  const title = String(e.title || '').trim();
+  const heading = title ? `日記「${title}」` : '日記';
+
+  // 先頭の空行は、追記先の既存内容と行が繋がらないようにするため
+  let md = `\n## ${dateLabel}${heading}\n`;
+  if (body) md += `${body}\n`;
+  if (hi.length) md += `\n${hi.join('\n')}\n`;
+  return md;
+}
+
 const OBSIDIAN_VAULT_KEY = 'obsidianVault';
 
 function getObsidianVault() {
@@ -3643,6 +3679,10 @@ async function sendMarkdownToObsidian(id, md, btn, label) {
 
 async function handleObsidianSend(memo, btn) {
   return sendMarkdownToObsidian(memo.id, memoToMarkdown(memo), btn, 'このメモ');
+}
+
+async function handleObsidianSendDiary(entry, btn) {
+  return sendMarkdownToObsidian(entry.id, diaryToMarkdown(entry), btn, 'この日記');
 }
 
 // ===== 設定 =====
