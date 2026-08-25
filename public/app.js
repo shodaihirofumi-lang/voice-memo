@@ -3150,6 +3150,21 @@ textOrganizeBtn.addEventListener('click', async () => {
   }
 });
 
+// AIを通さず、入力したテキストをそのまま日記に1件保存する
+document.getElementById('plainSaveBtn').addEventListener('click', () => {
+  stopDictation();
+  const text = textInput.value.trim();
+  if (!text) {
+    toast('テキストを入力してください');
+    return;
+  }
+  addDiaryEntry(text);
+  textInput.value = '';
+  textCard.classList.add('hidden');
+  renderDiaryView();
+  toast('📔 日記に保存しました');
+});
+
 // ===== 週間まとめ =====
 pendingBtn.addEventListener('click', () => {
   weeklyResultEl.innerHTML = '';
