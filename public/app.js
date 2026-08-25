@@ -3085,6 +3085,7 @@ function startDictation() {
     recog.interimResults = true;
     dictBase = textInput.value ? textInput.value.replace(/\s*$/, '') + ' ' : '';
     recog.onresult = (e) => {
+      if (!dictating) return; // stopDictation() 後に非同期で届く最終結果を無視する（入力欄の復活を防ぐ）
       let interim = '', finalAdd = '';
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const tr = e.results[i][0].transcript;
