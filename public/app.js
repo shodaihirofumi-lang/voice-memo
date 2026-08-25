@@ -2113,6 +2113,24 @@ function autoSaveDiary(memo) {
   }).catch(() => {});
 }
 
+// 日記を1件追加して保存する。日記タブの「保存」と録音タブの「そのまま保存」が共用する。
+// 空文字の検証と、保存後の画面更新・トーストは呼び出し側の責任にしている
+// （日記タブと録音タブで後処理が違うため）
+function addDiaryEntry(text, title, date) {
+  const entry = {
+    id: 'diy_' + Date.now(),
+    ts: Date.now(),
+    date: date || diaryDateStr(),
+    title: title || '',
+    text,
+    formatted: text,
+    highlights: [],
+  };
+  diaries.unshift(entry);
+  saveDiaries();
+  return entry;
+}
+
 function diaryDateStr(d) {
   d = d || new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -2181,8 +2199,7 @@ function initDiaryEditor() {
     const date = document.getElementById('diaryDate')?.value || diaryDateStr();
     const title = (document.getElementById('diaryTitle')?.value || '').trim();
     if (!text) { toast('内容を入力してください'); return; }
-    diaries.unshift({ id: 'diy_' + Date.now(), ts: Date.now(), date, title, text, formatted: text, highlights: [] });
-    saveDiaries();
+    addDiaryEntry(text, title, date);
     document.getElementById('diaryText').value = '';
     document.getElementById('diaryTitle').value = '';
     if (aiResult) { aiResult.innerHTML = ''; aiResult.classList.add('hidden'); }
