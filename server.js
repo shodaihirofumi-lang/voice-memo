@@ -9,7 +9,9 @@ const app = express();
 
 const ANTHROPIC_API_KEY = (process.env.ANTHROPIC_API_KEY || '').trim();
 const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || '').trim();
-const GEMINI_MODEL = (process.env.GEMINI_MODEL || 'gemini-2.0-flash').trim();
+// gemini-2.0-flash は非推奨で提供終了日(2026-06-01)を過ぎている。失敗すると黙って
+// 有料のClaudeにフォールバックしてしまうため、無料枠のある現行モデルを既定にする
+const GEMINI_MODEL = (process.env.GEMINI_MODEL || 'gemini-3.6-flash').trim();
 const GROQ_API_KEY = (process.env.GROQ_API_KEY || '').trim();
 
 const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
@@ -18,7 +20,7 @@ app.use(express.json({ limit: '20mb' }));
 app.use(express.static(join(__dirname, 'public')));
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, version: 55, ai: GEMINI_API_KEY ? 'gemini' : 'claude' });
+  res.json({ ok: true, version: 56, ai: GEMINI_API_KEY ? 'gemini' : 'claude' });
 });
 
 const WEEKDAYS_JA = ['日', '月', '火', '水', '木', '金', '土'];
