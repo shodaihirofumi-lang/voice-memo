@@ -3572,9 +3572,8 @@ function buildObsidianDailyURI(params) {
   return `obsidian://daily?${qs.join('&')}`;
 }
 
-// URIの組み立てまでを行い、Obsidianの起動はしない（検証しやすくするため分離）
-async function prepareObsidianSend(memo) {
-  const md = memoToMarkdown(memo);
+// Markdownを受け取ってURIを組み立てる。メモ・日記の両方がここを通る
+async function prepareObsidianSendMarkdown(md) {
   if (!md) return { ok: false, reason: 'empty' };
 
   const withContent = buildObsidianDailyURI({ content: md });
@@ -3589,6 +3588,10 @@ async function prepareObsidianSend(memo) {
     return { ok: false, reason: 'clipboard' };
   }
   return { ok: true, uri: buildObsidianDailyURI({ clipboard: true }), mode: 'clipboard', markdown: md };
+}
+
+async function prepareObsidianSend(memo) {
+  return prepareObsidianSendMarkdown(memoToMarkdown(memo));
 }
 
 // 起動だけを切り出しておく。window.location は再定義できない（Chromeで TypeError）ため、
@@ -3618,22 +3621,28 @@ function unmarkObsidianSent(id) {
 
 // Obsidianが実際に追記できたかはWeb側から知る手段がないので、
 // 送信済みは「起動した時点」で楽観的に付ける。起動しなかった場合に備えて再送を許す
-async function handleObsidianSend(memo, btn) {
-  if (isObsidianSent(memo.id) && !confirm('このメモは送信済みです。もう一度Obsidianに追記しますか？')) return;
+// 確認 → 送信 → 送信済み記録 → 起動。メモ・日記の両方がここを通る。
+// label は確認ダイアログの文言に使う（'このメモ' / 'この日記'）
+async function sendMarkdownToObsidian(id, md, btn, label) {
+  if (isObsidianSent(id) && !confirm(`${label}は送信済みです。もう一度Obsidianに追記しますか？`)) return;
 
-  const r = await prepareObsidianSend(memo);
+  const r = await prepareObsidianSendMarkdown(md);
   if (!r.ok) {
     toast(r.reason === 'empty' ? '送る内容がありません' : '内容が長く、クリップボードにも書けませんでした');
     return;
   }
 
-  markObsidianSent(memo.id);
+  markObsidianSent(id);
   if (btn) {
     btn.textContent = '🔮 送信済';
     btn.classList.add('obsidian-sent');
   }
   if (r.mode === 'clipboard') toast('長いのでクリップボード経由で送ります');
   openObsidianURI(r.uri);
+}
+
+async function handleObsidianSend(memo, btn) {
+  return sendMarkdownToObsidian(memo.id, memoToMarkdown(memo), btn, 'このメモ');
 }
 
 // ===== 設定 =====
