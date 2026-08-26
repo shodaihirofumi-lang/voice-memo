@@ -5,19 +5,30 @@
 }
 
 :root {
-  --bg: #09090b;
-  --surface: #121215;
-  --surface-2: #19191d;
-  --border: rgba(255, 255, 255, 0.09);
-  --border-strong: rgba(255, 255, 255, 0.18);
-  --text: #f8f8fa;
-  --text-2: #b8b8c4;
-  --text-3: #7e7e8a;
-  --red: #ef4444;
-  --red-soft: #f87171;
-  --green: #4ade80;
-  --accent: #fbbf24;
-  --accent2: #f97316;
+  /* ===== 和本デザイントークン ===== */
+  --wa-paper:   #ede4d0;
+  --wa-paper-2: #f5eed8;
+  --wa-sumi:    #241d18;
+  --wa-sumi-2:  #6a5a48;
+  --wa-shu:     #a83a2a;
+  --wa-line:    #2d251c;
+  --wa-line-2:  rgba(30,20,15,0.2);
+  --wa-shadow:  rgba(60,40,22,0.15);
+
+  /* ===== 既存トークンを和本の値に再定義（変数名は残して全参照を追随させる）===== */
+  --bg: var(--wa-paper);
+  --surface: var(--wa-paper-2);
+  --surface-2: rgba(30,20,15,0.06);
+  --border: rgba(30,20,15,0.14);
+  --border-strong: rgba(30,20,15,0.28);
+  --text: var(--wa-sumi);
+  --text-2: var(--wa-sumi-2);
+  --text-3: #8b7c68;
+  --red: var(--wa-shu);
+  --red-soft: #c05540;
+  --green: #4a6b2f;
+  --accent: var(--wa-shu);
+  --accent2: #7a3a26;
 }
 
 html {
@@ -25,7 +36,7 @@ html {
 }
 
 body {
-  font-family: Inter, 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+  font-family: 'Klee One', 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', serif;
   background: var(--bg);
   color: var(--text);
   line-height: 1.65;
