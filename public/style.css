@@ -86,7 +86,7 @@ header {
 .ws-tab.active {
   background: var(--surface-2);
   color: var(--text);
-  border-color: rgba(255,255,255,0.3);
+  border-color: var(--wa-sumi);
 }
 .ws-tab.active[data-ws="work"]    { color: var(--wa-shu); border-color: var(--wa-shu); background: rgba(168,58,42,0.08); }
 .ws-tab.active[data-ws="private"] { color: var(--wa-sumi); border-color: var(--wa-sumi); background: rgba(30,20,15,0.06); }
@@ -404,7 +404,7 @@ header {
 .item-row.done .item-text {
   color: var(--text-3);
   text-decoration: line-through;
-  text-decoration-color: rgba(255, 255, 255, 0.3);
+  text-decoration-color: rgba(30, 20, 15, 0.35);
 }
 
 .priority-badge {
@@ -606,10 +606,10 @@ header {
   display: flex;
   justify-content: space-evenly;
   gap: 0;
-  background: rgba(9, 9, 11, 0.86);
+  background: var(--wa-paper-2);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--wa-line-2);
   padding: 0.55rem 0 calc(0.65rem + env(safe-area-inset-bottom));
   z-index: 50;
 }
@@ -691,9 +691,9 @@ header {
   bottom: calc(5.6rem + env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
-  background: #1c1c21;
-  border: 1px solid var(--border-strong);
-  color: var(--text);
+  background: var(--wa-sumi);
+  border: 1px solid var(--wa-line);
+  color: var(--wa-paper);
   font-size: 0.85rem;
   font-weight: 500;
   border-radius: 12px;
