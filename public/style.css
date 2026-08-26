@@ -88,8 +88,8 @@ header {
   color: var(--text);
   border-color: rgba(255,255,255,0.3);
 }
-.ws-tab.active[data-ws="work"]    { color: #60a5fa; border-color: rgba(96,165,250,0.45); background: rgba(96,165,250,0.1); }
-.ws-tab.active[data-ws="private"] { color: #c084fc; border-color: rgba(192,132,252,0.45); background: rgba(192,132,252,0.1); }
+.ws-tab.active[data-ws="work"]    { color: var(--wa-shu); border-color: var(--wa-shu); background: rgba(168,58,42,0.08); }
+.ws-tab.active[data-ws="private"] { color: var(--wa-sumi); border-color: var(--wa-sumi); background: rgba(30,20,15,0.06); }
 
 /* ===== ワークスペースバッジ（履歴カード右上） ===== */
 .ws-badge-btn {
@@ -111,8 +111,8 @@ header {
   font-size: 0.76rem !important;
   font-weight: 700 !important;
 }
-.ws-toggle-btn.work    { color: #60a5fa; border-color: rgba(96,165,250,0.4); }
-.ws-toggle-btn.private { color: #c084fc; border-color: rgba(192,132,252,0.4); }
+.ws-toggle-btn.work    { color: var(--wa-shu); border-color: rgba(168,58,42,0.4); }
+.ws-toggle-btn.private { color: var(--wa-sumi); border-color: rgba(30,20,15,0.35); }
 
 .wordmark {
   display: inline-block;
@@ -161,8 +161,8 @@ header {
   height: 96px;
   border-radius: 50%;
   border: none;
-  background: #fff;
-  color: #09090b;
+  background: var(--wa-shu);
+  color: var(--wa-paper);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -204,7 +204,7 @@ header {
   inset: -7px;
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.1);
-  border-top-color: #fff;
+  border-top-color: var(--wa-paper);
   animation: spin 0.9s linear infinite;
 }
 
@@ -233,7 +233,7 @@ header {
   color: var(--text);
   box-shadow: 0 0 0 1px var(--border-strong);
 }
-.record-btn.alt:hover:not(:disabled) { background: #202026; }
+.record-btn.alt:hover:not(:disabled) { background: rgba(30,20,15,0.08); }
 
 /* 波形 */
 #visualizer {
