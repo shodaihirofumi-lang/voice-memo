@@ -31,6 +31,39 @@
   --accent2: #7a3a26;
 }
 
+/* ===== 背景色テーマ切替 : data-bg 属性で上書き ===== */
+:root[data-bg="dark"] {
+  --wa-paper:   #09090b;
+  --wa-paper-2: #16161a;
+  --wa-sumi:    #eaeaee;
+  --wa-sumi-2:  #a5a5b0;
+  --wa-shu:     #d16b52;
+  --wa-line:    #3a3a42;
+  --wa-line-2:  rgba(255,255,255,0.14);
+  --wa-shadow:  rgba(0,0,0,0.5);
+  --surface-2:  rgba(255,255,255,0.06);
+  --border:     rgba(255,255,255,0.14);
+  --border-strong: rgba(255,255,255,0.28);
+  --text-2:     #c4c4cc;
+  --text-3:     #8b8b95;
+  --red-soft:   #e08a75;
+  --green:      #7cb85c;
+  --accent2:    #b8514a;
+}
+
+:root[data-bg="white"] {
+  --wa-paper:   #fafaf7;
+  --wa-paper-2: #ffffff;
+  --wa-sumi:    #1a1a1e;
+}
+
+:root[data-bg="deep"] {
+  --wa-paper:   #c5b394;
+  --wa-paper-2: #cdbb9c;
+  --wa-sumi:    #1a140f;
+  --wa-line-2:  rgba(30,20,15,0.28);
+}
+
 html {
   font-size: 20px;
 }
@@ -2399,3 +2432,43 @@ header {
 
 /* ノートカードの操作行。ボタン自体は既存の .pill-btn / .pill-btn.obsidian-sent を流用 */
 .notes-card-actions { display: flex; justify-content: flex-end; margin-top: 0.5rem; }
+
+/* ===== 背景色ピッカー ===== */
+.bg-picker { display: flex; gap: 0.5rem; margin-top: 0.4rem; }
+.bg-picker-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.2rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.bg-swatch {
+  width: 52px; height: 52px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-family: 'Shippori Mincho', 'Noto Serif JP', serif;
+  font-weight: 700;
+  font-size: 1.4rem;
+  border: 2px solid transparent;
+  transition: transform 0.12s ease, border-color 0.12s ease;
+  box-shadow: 0 2px 6px var(--wa-shadow);
+}
+.bg-picker-btn.active .bg-swatch {
+  border-color: var(--wa-shu);
+  transform: scale(1.08);
+}
+.bg-picker-label {
+  font-size: 0.78rem;
+  color: var(--text-2);
+  letter-spacing: 0.05em;
+}
+.bg-picker-btn.active .bg-picker-label {
+  color: var(--wa-shu);
+  font-weight: 600;
+}

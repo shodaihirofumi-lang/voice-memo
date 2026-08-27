@@ -1390,7 +1390,7 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
     if (btn.dataset.view === 'notes') renderNotesView();
     if (btn.dataset.view === 'calendar') renderCalendarView();
     if (btn.dataset.view === 'advisor') renderAdvisorView();
-    if (btn.dataset.view === 'settings') { renderTrash(); renderStats(); renderMonsterDex(); renderActivityCalendar(); renderThemes(); renderBadges(); renderGameSettings(); }
+    if (btn.dataset.view === 'settings') { renderTrash(); renderStats(); renderMonsterDex(); renderActivityCalendar(); renderThemes(); renderBadges(); renderGameSettings(); applyBgTheme(localStorage.getItem('voiceMemoBg') || 'wahon'); }
   });
 });
 
@@ -3722,6 +3722,25 @@ async function handleObsidianSendDiary(entry, btn) {
   return sendMarkdownToObsidian(entry.id, diaryToMarkdown(entry), btn, 'この日記');
 }
 
+// ===== 背景色テーマ =====
+const BG_KEY = 'voiceMemoBg';
+const BG_VALID = ['wahon', 'dark', 'white', 'deep'];
+
+function applyBgTheme(name) {
+  const bg = BG_VALID.includes(name) ? name : 'wahon';
+  if (bg === 'wahon') document.documentElement.removeAttribute('data-bg');
+  else document.documentElement.setAttribute('data-bg', bg);
+  try { localStorage.setItem(BG_KEY, bg); } catch {}
+  document.querySelectorAll('[data-bg-name]').forEach((el) => {
+    el.classList.toggle('active', el.dataset.bgName === bg);
+  });
+}
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-bg-name]');
+  if (btn) applyBgTheme(btn.dataset.bgName);
+});
+
 // ===== 設定 =====
 function refreshTokenStatus() {
   const saved = !!localStorage.getItem(TOKEN_KEY);
@@ -3749,6 +3768,7 @@ document.getElementById('clearTokenBtn').addEventListener('click', () => {
 refreshTokenStatus();
 refreshVaultStatus();
 refreshLinkWordsStatus();
+applyBgTheme(localStorage.getItem('voiceMemoBg') || 'wahon');
 setStatus('タップして録音');
 applyTheme(currentTheme);
 renderWorkspaceTabs();
