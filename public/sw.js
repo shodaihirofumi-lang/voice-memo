@@ -1,8 +1,8 @@
-const CACHE = 'voice-memo-v59';
+const CACHE = 'voice-memo-v60';
 const ASSETS = [
   '/',
-  '/style.css?v=59',
-  '/app.js?v=59',
+  '/style.css?v=60',
+  '/app.js?v=60',
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
