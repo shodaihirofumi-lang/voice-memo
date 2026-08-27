@@ -20,7 +20,7 @@ app.use(express.json({ limit: '20mb' }));
 app.use(express.static(join(__dirname, 'public')));
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, version: 61, ai: GEMINI_API_KEY ? 'gemini' : 'claude' });
+  res.json({ ok: true, version: 62, ai: GEMINI_API_KEY ? 'gemini' : 'claude' });
 });
 
 const WEEKDAYS_JA = ['日', '月', '火', '水', '木', '金', '土'];

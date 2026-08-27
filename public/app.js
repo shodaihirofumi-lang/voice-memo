@@ -1390,7 +1390,7 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
     if (btn.dataset.view === 'notes') renderNotesView();
     if (btn.dataset.view === 'calendar') renderCalendarView();
     if (btn.dataset.view === 'advisor') renderAdvisorView();
-    if (btn.dataset.view === 'settings') { renderTrash(); renderStats(); renderMonsterDex(); renderActivityCalendar(); renderThemes(); renderBadges(); renderGameSettings(); applyBgTheme(localStorage.getItem('voiceMemoBg') || 'wahon'); }
+    if (btn.dataset.view === 'settings') { renderTrash(); renderStats(); renderMonsterDex(); renderActivityCalendar(); renderThemes(); renderBadges(); renderGameSettings(); refreshVaultStatus(); refreshLinkWordsStatus(); applyBgTheme(localStorage.getItem('voiceMemoBg') || 'wahon'); }
   });
 });
 
@@ -3622,6 +3622,14 @@ function refreshLinkWordsStatus() {
 document.getElementById('saveLinkWordsBtn')?.addEventListener('click', () => {
   const raw = document.getElementById('obsidianLinkWords')?.value || '';
   const words = [...new Set(raw.split('\n').map((w) => w.trim()).filter((w) => w))];
+  // 既存の登録があるのに空で保存を押されたら誤操作の可能性が高い。確認してから上書きする
+  const existing = getLinkWords();
+  if (words.length === 0 && existing.length > 0) {
+    if (!confirm(`現在${existing.length}語が登録されています。すべて消してよろしいですか？`)) {
+      refreshLinkWordsStatus();
+      return;
+    }
+  }
   persist(LINK_WORDS_KEY, words, 'リンク語');
   refreshLinkWordsStatus();
   toast(words.length ? `${words.length}語を保存しました` : 'リンク語を空にしました');
