@@ -3539,7 +3539,9 @@ function memoToMarkdown(memo) {
 
   // 先頭の空行は、追記先の既存内容と行が繋がらないようにするため
   let md = `\n## ${dateLabel}${time} ${title}\n`;
-  if (summary) md += `${summary}\n`;
+  const workspaceField = o.workspace ? ` [workspace:: ${o.workspace}]` : '';
+  md += `[date:: ${dateISO}] [time:: ${time}]${workspaceField}\n`;
+  if (summary) md += `\n${summary}\n`;
   if (lines.length) md += `\n${lines.join('\n')}\n`;
 
   // Obsidianの検索で同じ話題を横断できるよう #タグ を末尾に付ける
@@ -3572,7 +3574,8 @@ function diaryToMarkdown(entry) {
 
   // 先頭の空行は、追記先の既存内容と行が繋がらないようにするため
   let md = `\n## ${dateLabel}${heading}\n`;
-  if (body) md += `${body}\n`;
+  md += `[date:: ${date}]\n`;
+  if (body) md += `\n${body}\n`;
   if (hi.length) md += `\n${hi.join('\n')}\n`;
   return md;
 }
