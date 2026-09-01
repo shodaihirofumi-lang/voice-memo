@@ -3541,6 +3541,11 @@ function memoToMarkdown(memo) {
   let md = `\n## ${dateLabel}${time} ${title}\n`;
   if (summary) md += `${summary}\n`;
   if (lines.length) md += `\n${lines.join('\n')}\n`;
+
+  // Obsidianの検索で同じ話題を横断できるよう #タグ を末尾に付ける
+  const tags = (o.tags || []).filter((t) => t && typeof t === 'string');
+  if (tags.length) md += `\n${tags.map((t) => '#' + t).join(' ')}\n`;
+
   return md;
 }
 
