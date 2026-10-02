@@ -1390,7 +1390,7 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
     if (btn.dataset.view === 'notes') renderNotesView();
     if (btn.dataset.view === 'calendar') renderCalendarView();
     if (btn.dataset.view === 'advisor') renderAdvisorView();
-    if (btn.dataset.view === 'settings') { renderTrash(); renderStats(); renderMonsterDex(); renderActivityCalendar(); renderThemes(); renderBadges(); renderGameSettings(); refreshVaultStatus(); refreshLinkWordsStatus(); applyBgTheme(localStorage.getItem('voiceMemoBg') || 'wahon'); }
+    if (btn.dataset.view === 'settings') { renderTrash(); renderStats(); renderMonsterDex(); renderActivityCalendar(); renderThemes(); renderBadges(); renderGameSettings(); refreshVaultStatus(); refreshLinkWordsStatus(); applyBgTheme(localStorage.getItem('voiceMemoBg') || 'wahon'); applyUiStyle(localStorage.getItem('voiceMemoUi') || 'wahon'); }
   });
 });
 
@@ -3757,6 +3757,25 @@ document.addEventListener('click', (e) => {
   if (btn) applyBgTheme(btn.dataset.bgName);
 });
 
+// ===== 見た目(UIスタイル) =====
+const UI_KEY = 'voiceMemoUi';
+const UI_VALID = ['wahon', 'hud'];
+
+function applyUiStyle(name) {
+  const ui = UI_VALID.includes(name) ? name : 'wahon';
+  if (ui === 'wahon') document.documentElement.removeAttribute('data-ui');
+  else document.documentElement.setAttribute('data-ui', ui);
+  try { localStorage.setItem(UI_KEY, ui); } catch {}
+  document.querySelectorAll('[data-ui-name]').forEach((el) => {
+    el.classList.toggle('active', el.dataset.uiName === ui);
+  });
+}
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-ui-name]');
+  if (btn) applyUiStyle(btn.dataset.uiName);
+});
+
 // ===== 設定 =====
 function refreshTokenStatus() {
   const saved = !!localStorage.getItem(TOKEN_KEY);
@@ -3785,6 +3804,7 @@ refreshTokenStatus();
 refreshVaultStatus();
 refreshLinkWordsStatus();
 applyBgTheme(localStorage.getItem('voiceMemoBg') || 'wahon');
+applyUiStyle(localStorage.getItem('voiceMemoUi') || 'wahon');
 setStatus('タップして録音');
 applyTheme(currentTheme);
 renderWorkspaceTabs();

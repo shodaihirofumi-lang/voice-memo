@@ -2472,3 +2472,292 @@ header {
   color: var(--wa-shu);
   font-weight: 600;
 }
+
+/* ===== 見た目(UI style)ピッカー ===== */
+.ui-picker { display: flex; gap: 0.6rem; margin-top: 0.4rem; }
+.ui-picker-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.65rem 0.3rem;
+  background: transparent;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.ui-picker-btn.active {
+  border-color: var(--wa-shu);
+  background: rgba(168,58,42,0.06);
+}
+.ui-swatch {
+  width: 48px; height: 48px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 1.4rem;
+  box-shadow: 0 2px 6px var(--wa-shadow);
+}
+.ui-swatch-wahon {
+  background: #ede4d0;
+  color: #241d18;
+  font-family: 'Shippori Mincho', 'Noto Serif JP', serif;
+}
+.ui-swatch-hud {
+  background: linear-gradient(135deg, #071126 0%, #0f1d33 100%);
+  color: #7dd3fc;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  border: 1px solid rgba(125,211,252,0.4);
+  box-shadow: 0 0 10px rgba(125,211,252,0.3), inset 0 0 8px rgba(125,211,252,0.15);
+}
+.ui-picker-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--wa-sumi);
+  letter-spacing: 0.04em;
+}
+.ui-picker-btn.active .ui-picker-label {
+  color: var(--wa-shu);
+}
+.ui-picker-sub {
+  font-size: 0.7rem;
+  color: var(--text-3);
+  letter-spacing: 0.02em;
+}
+
+/* ===== 未来テーマ(HUDコマンド) ===== */
+:root[data-ui="hud"] {
+  /* 深紺の宇宙船コンソール ＋ シアンHUD */
+  --wa-paper:   #071126;
+  --wa-paper-2: #0d1b35;
+  --wa-sumi:    #e2e8f0;
+  --wa-sumi-2:  #94a3b8;
+  --wa-shu:     #7dd3fc;
+  --wa-line:    rgba(125,211,252,0.42);
+  --wa-line-2:  rgba(125,211,252,0.16);
+  --wa-shadow:  rgba(0,0,0,0.55);
+
+  --bg:         #071126;
+  --bg-2:       #0d1b35;
+  --surface-1:  #0d1b35;
+  --surface-2:  rgba(125,211,252,0.06);
+  --border:     rgba(125,211,252,0.22);
+  --border-strong: rgba(125,211,252,0.42);
+  --text-1:     #e2e8f0;
+  --text-2:     #cbd5e1;
+  --text-3:     #94a3b8;
+  --accent:     #7dd3fc;
+  --accent2:    #fb923c;
+  --red:        #fb923c;
+  --red-soft:   #fdba74;
+  --green:      #86efac;
+  --gold:       #fbbf24;
+}
+
+/* 背景色ピッカーの上書き (HUD時は背景色の意味が変わる — 全部深紺系で統一) */
+:root[data-ui="hud"][data-bg="dark"] { --wa-paper: #000814; --wa-paper-2: #04101f; }
+:root[data-ui="hud"][data-bg="white"] { --wa-paper: #0a1a30; --wa-paper-2: #10243e; }
+:root[data-ui="hud"][data-bg="deep"]  { --wa-paper: #04091a; --wa-paper-2: #0a1428; }
+
+:root[data-ui="hud"] body {
+  font-family: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
+  background:
+    linear-gradient(180deg, #071126 0%, #0a1832 100%),
+    repeating-linear-gradient(0deg,
+      transparent 0px, transparent 23px,
+      rgba(125,211,252,0.04) 23px, rgba(125,211,252,0.04) 24px);
+  background-attachment: fixed;
+  color: #e2e8f0;
+}
+
+:root[data-ui="hud"] .wordmark,
+:root[data-ui="hud"] .view-title,
+:root[data-ui="hud"] .card-label,
+:root[data-ui="hud"] h1,
+:root[data-ui="hud"] h2,
+:root[data-ui="hud"] h3,
+:root[data-ui="hud"] h4 {
+  font-family: 'Space Grotesk', 'Inter', 'Noto Sans JP', sans-serif;
+  letter-spacing: 0.04em;
+  color: #e2e8f0;
+}
+
+:root[data-ui="hud"] .wordmark {
+  text-transform: uppercase;
+  font-size: 1.1rem;
+  color: #7dd3fc;
+  text-shadow: 0 0 8px rgba(125,211,252,0.5);
+}
+:root[data-ui="hud"] .wordmark::before { content: '◉ '; color: #7dd3fc; }
+:root[data-ui="hud"] .wordmark::after  { content: ' / COMMAND'; color: #94a3b8; font-size: 0.75rem; letter-spacing: 0.1em; }
+
+:root[data-ui="hud"] .view-title {
+  color: #7dd3fc;
+  text-transform: uppercase;
+  font-size: 1.05rem;
+  letter-spacing: 0.14em;
+  border-bottom: 1px solid rgba(125,211,252,0.3);
+  padding-bottom: 0.4rem;
+}
+
+:root[data-ui="hud"] .card-label {
+  color: #7dd3fc;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+}
+
+/* カード: 角張った枠 ＋ 左にシアンの縦ライン */
+:root[data-ui="hud"] .glass-card {
+  background: linear-gradient(180deg, rgba(13,27,53,0.9) 0%, rgba(10,24,50,0.85) 100%);
+  border: 1px solid rgba(125,211,252,0.22);
+  border-left: 2px solid #7dd3fc;
+  border-radius: 4px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.45), inset 0 1px 0 rgba(125,211,252,0.08);
+  position: relative;
+}
+:root[data-ui="hud"] .glass-card::before,
+:root[data-ui="hud"] .glass-card::after {
+  content: '';
+  position: absolute;
+  width: 10px; height: 10px;
+  border: 1px solid rgba(125,211,252,0.5);
+  pointer-events: none;
+}
+:root[data-ui="hud"] .glass-card::before { top: -1px; right: -1px; border-left: none; border-bottom: none; }
+:root[data-ui="hud"] .glass-card::after  { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+
+/* ボタン: 角張った */
+:root[data-ui="hud"] .pill-btn,
+:root[data-ui="hud"] button.btn,
+:root[data-ui="hud"] .chip,
+:root[data-ui="hud"] .ui-picker-btn,
+:root[data-ui="hud"] .bg-picker-btn {
+  border-radius: 3px;
+}
+:root[data-ui="hud"] .pill-btn {
+  background: rgba(125,211,252,0.08);
+  color: #e2e8f0;
+  border: 1px solid rgba(125,211,252,0.3);
+  font-family: 'Inter', 'Noto Sans JP', sans-serif;
+  letter-spacing: 0.04em;
+}
+:root[data-ui="hud"] .pill-btn.primary {
+  background: linear-gradient(180deg, #0ea5e9 0%, #0284c7 100%);
+  color: #071126;
+  border: 1px solid #38bdf8;
+  font-weight: 700;
+  box-shadow: 0 0 10px rgba(125,211,252,0.4), inset 0 1px 0 rgba(255,255,255,0.2);
+}
+
+/* 入力欄 */
+:root[data-ui="hud"] .text-input,
+:root[data-ui="hud"] input[type="text"],
+:root[data-ui="hud"] input[type="password"],
+:root[data-ui="hud"] textarea {
+  background: rgba(7,17,38,0.6);
+  border: 1px solid rgba(125,211,252,0.25);
+  border-radius: 3px;
+  color: #e2e8f0;
+  font-family: 'Inter', 'Noto Sans JP', sans-serif;
+}
+:root[data-ui="hud"] .text-input:focus,
+:root[data-ui="hud"] textarea:focus {
+  outline: none;
+  border-color: #7dd3fc;
+  box-shadow: 0 0 0 2px rgba(125,211,252,0.2);
+}
+
+/* 下ナビ: 上辺にシアン発光 */
+:root[data-ui="hud"] .bottom-nav {
+  background: linear-gradient(180deg, #0a1832 0%, #071126 100%);
+  border-top: 1px solid rgba(125,211,252,0.3);
+  box-shadow: 0 -1px 10px rgba(125,211,252,0.15);
+}
+:root[data-ui="hud"] .bottom-nav button {
+  color: #94a3b8;
+  font-family: 'Inter', 'Noto Sans JP', sans-serif;
+  letter-spacing: 0.03em;
+}
+:root[data-ui="hud"] .bottom-nav button.active {
+  color: #7dd3fc;
+  text-shadow: 0 0 6px rgba(125,211,252,0.5);
+}
+:root[data-ui="hud"] .bottom-nav button.active::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 15%; right: 15%;
+  height: 2px;
+  background: #7dd3fc;
+  box-shadow: 0 0 8px #7dd3fc;
+}
+
+/* 録音ボタン: 円形HUDゲージ風 */
+:root[data-ui="hud"] .record-btn {
+  background: linear-gradient(180deg, #0ea5e9 0%, #0284c7 100%);
+  border: 2px solid #7dd3fc;
+  box-shadow:
+    0 0 20px rgba(125,211,252,0.5),
+    0 0 40px rgba(125,211,252,0.25),
+    inset 0 0 15px rgba(255,255,255,0.15);
+  color: #071126;
+}
+:root[data-ui="hud"] .record-btn.recording {
+  background: linear-gradient(180deg, #fb923c 0%, #ea580c 100%);
+  border-color: #fdba74;
+  box-shadow:
+    0 0 25px rgba(251,146,60,0.6),
+    0 0 50px rgba(251,146,60,0.3);
+}
+
+/* トースト */
+:root[data-ui="hud"] .toast {
+  background: linear-gradient(180deg, #0d1b35 0%, #071126 100%);
+  color: #7dd3fc;
+  border: 1px solid rgba(125,211,252,0.4);
+  border-radius: 3px;
+  font-family: 'Inter', 'Noto Sans JP', sans-serif;
+  letter-spacing: 0.03em;
+  box-shadow: 0 0 15px rgba(125,211,252,0.25);
+}
+
+/* タグ/チップ */
+:root[data-ui="hud"] .tag,
+:root[data-ui="hud"] .chip {
+  background: rgba(125,211,252,0.1);
+  color: #7dd3fc;
+  border: 1px solid rgba(125,211,252,0.3);
+  font-family: 'JetBrains Mono', 'Inter', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+/* ワークスペースタブ */
+:root[data-ui="hud"] .workspace-tabs button.active {
+  background: rgba(125,211,252,0.15);
+  color: #7dd3fc;
+  border: 1px solid rgba(125,211,252,0.4);
+}
+
+/* カードとボディ文字色の仕上げ */
+:root[data-ui="hud"] body,
+:root[data-ui="hud"] .glass-card,
+:root[data-ui="hud"] .memo-text,
+:root[data-ui="hud"] .diary-text,
+:root[data-ui="hud"] p,
+:root[data-ui="hud"] li {
+  color: #e2e8f0;
+}
+:root[data-ui="hud"] .meta,
+:root[data-ui="hud"] .time,
+:root[data-ui="hud"] .date,
+:root[data-ui="hud"] .settings-help {
+  color: #94a3b8;
+  font-family: 'JetBrains Mono', 'Inter', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}

@@ -13,8 +13,8 @@
   <link rel="icon" type="image/png" href="icons/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600;700&family=Klee+One:wght@400;600&family=Noto+Serif+JP:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=64">
+  <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600;700&family=Klee+One:wght@400;600&family=Noto+Serif+JP:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=65">
 </head>
 <body>
   <div class="app">
@@ -152,6 +152,22 @@
         <h2 class="view-title">設定</h2>
 
         <div class="glass-card settings-card">
+          <h3 class="card-label">見た目</h3>
+          <div class="ui-picker">
+            <button data-ui-name="wahon" class="ui-picker-btn">
+              <span class="ui-swatch ui-swatch-wahon">和</span>
+              <span class="ui-picker-label">和本</span>
+              <span class="ui-picker-sub">明朝体・和紙</span>
+            </button>
+            <button data-ui-name="hud" class="ui-picker-btn">
+              <span class="ui-swatch ui-swatch-hud">◉</span>
+              <span class="ui-picker-label">未来</span>
+              <span class="ui-picker-sub">HUDコマンド</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="glass-card settings-card">
           <h3 class="card-label">背景色</h3>
           <div class="bg-picker">
             <button data-bg-name="wahon" class="bg-picker-btn">
@@ -275,6 +291,6 @@
   </div>
   <div id="comboPopup" class="combo-popup"></div>
   <div id="confettiContainer"></div>
-  <script src="app.js?v=64"></script>
+  <script src="app.js?v=65"></script>
 </body>
 </html>
