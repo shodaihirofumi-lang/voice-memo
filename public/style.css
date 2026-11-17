@@ -1801,6 +1801,19 @@ header {
   border-color: transparent;
 }
 
+/* ===== 手書き入力カード ===== */
+.hand-canvas {
+  width: 100%;
+  height: 280px;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid var(--border, rgba(0,0,0,0.12));
+  touch-action: none;
+  display: block;
+  cursor: crosshair;
+}
+#handStatus:empty { display: none; }
+
 /* ===== テキスト/音声入力カードのボタン ===== */
 .text-actions {
   display: flex;

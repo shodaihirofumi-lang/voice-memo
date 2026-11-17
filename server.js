@@ -20,7 +20,7 @@ app.use(express.json({ limit: '20mb' }));
 app.use(express.static(join(__dirname, 'public')));
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, version: 65, ai: GEMINI_API_KEY ? 'gemini' : 'claude' });
+  res.json({ ok: true, version: 66, ai: GEMINI_API_KEY ? 'gemini' : 'claude' });
 });
 
 const WEEKDAYS_JA = ['日', '月', '火', '水', '木', '金', '土'];
@@ -301,6 +301,79 @@ app.post('/api/transcribe', async (req, res) => {
       ? '文字起こしAI(Gemini)の無料枠が上限に達しました。Groqの無料APIキーをRenderに設定すると安定します（Groqは音声の無料枠が大きい）。'
       : err.message;
     res.status(500).json({ error: msg });
+  }
+});
+
+// ===== 手書き文字の読み取り（Gemini優先、失敗時はClaude）=====
+
+const HANDWRITING_PROMPT = 'この画像は手書きの日本語メモです。書かれている文字をそのまま読み取り、テキストだけを返してください。改行は画像の行に合わせてください。説明や前置きは一切不要です。読み取れる文字が無い場合は空文字列を返してください。';
+
+app.post('/api/handwriting', async (req, res) => {
+  const { image } = req.body || {};
+  if (!image) return res.status(400).json({ error: '画像データがありません' });
+  if (!GEMINI_API_KEY && !ANTHROPIC_API_KEY) {
+    return res.status(503).json({ error: 'GEMINI_API_KEYまたはANTHROPIC_API_KEYを設定してください' });
+  }
+
+  try {
+    // Gemini（優先）
+    if (GEMINI_API_KEY) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+        const r = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [
+              { inlineData: { mimeType: 'image/png', data: image } },
+              { text: HANDWRITING_PROMPT },
+            ]}],
+            generationConfig: { maxOutputTokens: 2000 },
+          }),
+        });
+
+        if (!r.ok) {
+          const body = await r.text().catch(() => '');
+          if (r.status === 400 && body.includes('API_KEY_INVALID')) {
+            throw new Error('GeminiのAPIキーが正しくありません');
+          }
+          if (r.status === 429) {
+            throw new Error('Geminiの無料枠の上限に達しました。しばらくしてからお試しください');
+          }
+          throw new Error(`Gemini APIエラー (${r.status})`);
+        }
+
+        const data = await r.json();
+        const parts = (((data.candidates || [])[0] || {}).content || {}).parts || [];
+        const text = parts.map((p) => p.text || '').join('').trim();
+        return res.json({ text, ai: 'gemini' });
+      } catch (err) {
+        if (!ANTHROPIC_API_KEY) throw err;
+        console.warn('[Gemini手書き失敗→Claudeに切替]', err.message);
+      }
+    }
+
+    // Claude（フォールバック）
+    const message = await anthropic.messages.create({
+      model: 'claude-haiku-4-5',
+      max_tokens: 2000,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/png', data: image } },
+          { type: 'text', text: HANDWRITING_PROMPT },
+        ],
+      }],
+    });
+    const text = message.content
+      .filter((b) => b.type === 'text')
+      .map((b) => b.text)
+      .join('')
+      .trim();
+    res.json({ text, ai: 'claude' });
+  } catch (err) {
+    console.error('[HANDWRITING ERROR]', err);
+    res.status(500).json({ error: aiErrorMessage(err) });
   }
 });
 

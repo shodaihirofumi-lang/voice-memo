@@ -3127,6 +3127,164 @@ document.getElementById('dictateBtn').addEventListener('click', () => {
   if (dictating) stopDictation(); else startDictation();
 });
 
+// ===== 手書き入力モード =====
+const handCard = document.getElementById('handCard');
+const handCanvas = document.getElementById('handCanvas');
+const handStatus = document.getElementById('handStatus');
+const handRecognizeBtn = document.getElementById('handRecognizeBtn');
+const HAND_HEIGHT = 280;
+let handCtx = null;
+let handWidth = 0;          // キャンバスの表示幅（CSSピクセル）
+let handStrokes = [];       // ストローク = 点{x,y}の配列。その配列で全体を保持する
+let handCurrent = null;     // 描画中のストローク
+
+// 表示幅に合わせて内部解像度をdevicePixelRatio倍にする（幅が変わっていれば作り直す）
+function initHandCanvas() {
+  const w = Math.round(handCanvas.getBoundingClientRect().width);
+  if (handCtx && w === handWidth) return;
+  const dpr = window.devicePixelRatio || 1;
+  handWidth = w;
+  handCanvas.width = Math.round(w * dpr);
+  handCanvas.height = Math.round(HAND_HEIGHT * dpr);
+  handCtx = handCanvas.getContext('2d');
+  handCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  redrawHand();
+}
+
+function drawHandStroke(stroke) {
+  if (!stroke.length) return;
+  handCtx.beginPath();
+  handCtx.moveTo(stroke[0].x, stroke[0].y);
+  if (stroke.length === 1) {
+    // 点だけ（タップ）も見えるようにする
+    handCtx.lineTo(stroke[0].x + 0.1, stroke[0].y);
+  } else {
+    for (let i = 1; i < stroke.length; i++) handCtx.lineTo(stroke[i].x, stroke[i].y);
+  }
+  handCtx.stroke();
+}
+
+// 白背景＋全ストロークで描き直す
+function redrawHand() {
+  if (!handCtx) return;
+  handCtx.fillStyle = '#fff';
+  handCtx.fillRect(0, 0, handWidth, HAND_HEIGHT);
+  handCtx.strokeStyle = '#1a1a1a';
+  handCtx.lineWidth = 3.5;
+  handCtx.lineCap = 'round';
+  handCtx.lineJoin = 'round';
+  handStrokes.forEach(drawHandStroke);
+}
+
+function handPoint(e) {
+  const rect = handCanvas.getBoundingClientRect();
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+
+handCanvas.addEventListener('pointerdown', (e) => {
+  if (!handCtx) initHandCanvas();
+  e.preventDefault();
+  handCanvas.setPointerCapture(e.pointerId);
+  handCurrent = [handPoint(e)];
+  handStrokes.push(handCurrent);
+  drawHandStroke(handCurrent);
+});
+
+handCanvas.addEventListener('pointermove', (e) => {
+  if (!handCurrent) return;
+  e.preventDefault();
+  const p = handPoint(e);
+  const last = handCurrent[handCurrent.length - 1];
+  handCurrent.push(p);
+  handCtx.beginPath();
+  handCtx.moveTo(last.x, last.y);
+  handCtx.lineTo(p.x, p.y);
+  handCtx.stroke();
+});
+
+function endHandStroke(e) {
+  if (!handCurrent) return;
+  handCurrent = null;
+  try { handCanvas.releasePointerCapture(e.pointerId); } catch {}
+}
+handCanvas.addEventListener('pointerup', endHandStroke);
+handCanvas.addEventListener('pointercancel', endHandStroke);
+
+function openHandCard() {
+  stopDictation();
+  textCard.classList.add('hidden');
+  handCard.classList.remove('hidden');
+  handStatus.textContent = '';
+  handStatus.className = 'status';
+  initHandCanvas(); // 表示後でないと幅が取れないので、hiddenを外してから初期化する
+}
+
+function closeHandCard() {
+  handCurrent = null;
+  handCard.classList.add('hidden');
+}
+
+document.getElementById('handModeBtn').addEventListener('click', () => {
+  if (handCard.classList.contains('hidden')) openHandCard(); else closeHandCard();
+});
+
+document.getElementById('handUndoBtn').addEventListener('click', () => {
+  handStrokes.pop();
+  redrawHand();
+});
+
+document.getElementById('handClearBtn').addEventListener('click', () => {
+  handStrokes = [];
+  redrawHand();
+  handStatus.textContent = '';
+});
+
+document.getElementById('handCloseBtn').addEventListener('click', closeHandCard);
+
+handRecognizeBtn.addEventListener('click', async () => {
+  if (!handStrokes.length) {
+    toast('まだ何も書かれていません');
+    return;
+  }
+  const image = handCanvas.toDataURL('image/png').split(',')[1];
+  handRecognizeBtn.disabled = true;
+  handRecognizeBtn.textContent = '読み取り中...';
+  handStatus.textContent = '読み取り中...';
+  handStatus.className = 'status processing';
+  try {
+    const r = await fetch('/api/handwriting', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image, mimeType: 'image/png' }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || `読み取りに失敗しました (${r.status})`);
+    const text = (data.text || '').trim();
+    if (!text) {
+      handStatus.textContent = '読み取れませんでした。もう少し大きく書いてみてください';
+      handStatus.className = 'status';
+      return;
+    }
+    // 既存の入力があれば改行して追記する
+    textInput.value = textInput.value.trim() ? textInput.value.replace(/\s*$/, '') + '\n' + text : text;
+    handStrokes = [];
+    redrawHand();
+    handStatus.textContent = '';
+    handStatus.className = 'status';
+    closeHandCard();
+    textCard.classList.remove('hidden');
+    updateDictateBtn();
+    textInput.focus();
+    toast('手書きを文字にしました');
+  } catch (err) {
+    handStatus.textContent = err.message || '読み取りに失敗しました';
+    handStatus.className = 'status error';
+  } finally {
+    handRecognizeBtn.disabled = false;
+    handRecognizeBtn.textContent = '文字にする';
+  }
+});
+
 document.getElementById('textCloseBtn').addEventListener('click', () => {
   stopDictation();
   textCard.classList.add('hidden');
