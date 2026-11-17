@@ -2079,7 +2079,7 @@ function renderCalendarView() {
 
 // ===== 日記 =====
 let diaries = JSON.parse(localStorage.getItem(DIARY_KEY) || '[]');
-function saveDiaries() { persist(DIARY_KEY, diaries, '日記'); }
+function saveDiaries() { return persist(DIARY_KEY, diaries, '日記'); }
 
 function autoSaveDiary(memo) {
   if (diaries.some((d) => d.memoId === memo.id)) return;
@@ -2171,6 +2171,10 @@ function renderDiaryView() {
   if (emptyEl) emptyEl.classList.add('hidden');
   listEl.innerHTML = sorted.map((entry) => {
     const highlights = (entry.highlights || []).map((h) => `<li>${esc(h)}</li>`).join('');
+    // 手書きメモは画像を本文の前に表示し、本文が空なら空の段落は出さない
+    const body = entry.formatted || entry.text || '';
+    const image = /^data:image\//.test(entry.image || '') ? `<img class="diary-entry-image" src="${esc(entry.image)}" alt="手書きメモ">` : '';
+    const content = body ? `<p class="diary-entry-content">${esc(body).replace(/\n/g, '<br>')}</p>` : '';
     return `<div class="diary-entry glass-card">
       <div class="diary-entry-head">
         <div>
@@ -2183,7 +2187,7 @@ function renderDiaryView() {
           <button class="pill-btn danger diary-del-btn" data-diary-del="${entry.id}">削除</button>
         </div>
       </div>
-      <p class="diary-entry-content">${esc(entry.formatted || entry.text || '').replace(/\n/g, '<br>')}</p>
+      ${image}${content}
       ${highlights ? `<ul class="diary-highlights">${highlights}</ul>` : ''}
     </div>`;
   }).join('');
@@ -3131,7 +3135,7 @@ document.getElementById('dictateBtn').addEventListener('click', () => {
 const handCard = document.getElementById('handCard');
 const handCanvas = document.getElementById('handCanvas');
 const handStatus = document.getElementById('handStatus');
-const handRecognizeBtn = document.getElementById('handRecognizeBtn');
+const handSaveBtn = document.getElementById('handSaveBtn');
 const HAND_HEIGHT = 280;
 let handCtx = null;
 let handWidth = 0;          // キャンバスの表示幅（CSSピクセル）
@@ -3241,48 +3245,44 @@ document.getElementById('handClearBtn').addEventListener('click', () => {
 
 document.getElementById('handCloseBtn').addEventListener('click', closeHandCard);
 
-handRecognizeBtn.addEventListener('click', async () => {
+// 手書きを文字に変換せず、画像のまま日記に記録する
+// localStorageの容量対策として、幅1200px以下に縮小した白背景のJPEGにする
+const HAND_IMAGE_MAX_WIDTH = 1200;
+
+function handCanvasToImage() {
+  const scale = Math.min(1, HAND_IMAGE_MAX_WIDTH / handCanvas.width);
+  const off = document.createElement('canvas');
+  off.width = Math.round(handCanvas.width * scale);
+  off.height = Math.round(handCanvas.height * scale);
+  const ctx = off.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, off.width, off.height);
+  ctx.drawImage(handCanvas, 0, 0, off.width, off.height);
+  return off.toDataURL('image/jpeg', 0.85);
+}
+
+handSaveBtn.addEventListener('click', () => {
   if (!handStrokes.length) {
     toast('まだ何も書かれていません');
     return;
   }
-  const image = handCanvas.toDataURL('image/png').split(',')[1];
-  handRecognizeBtn.disabled = true;
-  handRecognizeBtn.textContent = '読み取り中...';
-  handStatus.textContent = '読み取り中...';
-  handStatus.className = 'status processing';
-  try {
-    const r = await fetch('/api/handwriting', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image, mimeType: 'image/png' }),
-    });
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(data.error || `読み取りに失敗しました (${r.status})`);
-    const text = (data.text || '').trim();
-    if (!text) {
-      handStatus.textContent = '読み取れませんでした。もう少し大きく書いてみてください';
-      handStatus.className = 'status';
-      return;
-    }
-    // 既存の入力があれば改行して追記する
-    textInput.value = textInput.value.trim() ? textInput.value.replace(/\s*$/, '') + '\n' + text : text;
-    handStrokes = [];
-    redrawHand();
-    handStatus.textContent = '';
-    handStatus.className = 'status';
-    closeHandCard();
-    textCard.classList.remove('hidden');
-    updateDictateBtn();
-    textInput.focus();
-    toast('手書きを文字にしました');
-  } catch (err) {
-    handStatus.textContent = err.message || '読み取りに失敗しました';
-    handStatus.className = 'status error';
-  } finally {
-    handRecognizeBtn.disabled = false;
-    handRecognizeBtn.textContent = '文字にする';
+  const image = handCanvasToImage();
+  const entry = addDiaryEntry('', '手書きメモ');
+  entry.image = image;
+  if (!saveDiaries()) {
+    // 容量不足などで保存できなかったら、画像なしの空エントリを残さないよう取り消す
+    // （トーストはpersist()が出す。手書きは消さずに残しておく）
+    diaries = diaries.filter((d) => d !== entry);
+    saveDiaries();
+    return;
   }
+  handStrokes = [];
+  redrawHand();
+  handStatus.textContent = '';
+  handStatus.className = 'status';
+  closeHandCard();
+  renderDiaryView();
+  toast('✍️ 手書きメモを記録しました');
 });
 
 document.getElementById('textCloseBtn').addEventListener('click', () => {
